@@ -1,0 +1,23 @@
+[package]
+name = "thanatos-app"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lib]
+name = "thanatos_app"
+path = "src/lib.rs"
+
+[[bin]]
+name = "thanatos-app"
+path = "src/main.rs"
+
+[dependencies]
+thanatos-core = { path = "../thanatos-core" }
+gpui.workspace = true
+gpui_platform.workspace = true
+gpui-component.workspace = true
+
+[lints]
+workspace = true
