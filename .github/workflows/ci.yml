@@ -2,8 +2,17 @@ name: CI
 
 on:
   push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - LICENSE
   pull_request:
+    paths-ignore:
+      - '**.md'
+      - LICENSE
   workflow_dispatch:
+  schedule:
+    - cron: '17 4 * * *'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -19,6 +28,8 @@ permissions:
 jobs:
   core:
     name: Core (sem gpui)
+    if: github.event_name != 'schedule'
+    timeout-minutes: 15
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v7
@@ -27,13 +38,16 @@ jobs:
           toolchain: 1.96.0
           components: clippy, rustfmt
       - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
       - run: cargo fmt --all --check
       - run: cargo clippy --workspace --exclude thanatos-app --all-targets --locked -- -D warnings
       - run: cargo test --workspace --exclude thanatos-app --locked
 
   app:
     name: App (gpui)
-    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+    if: github.event_name != 'schedule'
+    timeout-minutes: 40
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v7
@@ -42,7 +56,26 @@ jobs:
           toolchain: 1.96.0
           components: clippy
       - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+          cache-on-failure: true
       - name: Dependências do Linux
         run: ./scripts/linux-deps.sh
       - run: cargo clippy -p thanatos-app --all-targets --locked -- -D warnings
+
+  app-build:
+    name: App build (gpui)
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    timeout-minutes: 60
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.96.0
+      - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      - name: Dependências do Linux
+        run: ./scripts/linux-deps.sh
       - run: cargo build -p thanatos-app --locked
