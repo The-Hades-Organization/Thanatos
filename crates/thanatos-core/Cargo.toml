@@ -5,5 +5,15 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 
+[dependencies]
+hades-core.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+regress.workspace = true
+indexmap.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+
 [lints]
 workspace = true

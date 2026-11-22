@@ -1,9 +1,10 @@
 //! Regra de negócio do Thanatos, sem interface.
 
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn crate_compila() {
-        assert_eq!(env!("CARGO_PKG_NAME"), "thanatos-core");
-    }
-}
+pub mod build;
+pub mod input;
+pub mod jsdate;
+pub mod jsstr;
+pub mod model;
+pub mod render;
+pub mod settings;
+pub mod store;
