@@ -2712,8 +2712,8 @@ dependencies = [
 
 [[package]]
 name = "hades-core"
-version = "0.2.1"
-source = "git+https://github.com/The-Hades-Organization/Hades-Core?tag=v0.2.1#06fb6be03ebf032db612f5143e84ddc71c1a9799"
+version = "0.2.2"
+source = "git+https://github.com/The-Hades-Organization/Hades-Core?tag=v0.2.2#8eb6f30df64d93a07172dc1a64b20f01d5f895b4"
 dependencies = [
  "regex",
  "rustix",
@@ -6366,6 +6366,7 @@ dependencies = [
  "hades-core",
  "indexmap",
  "regress",
+ "rustix",
  "serde",
  "serde_json",
  "tempfile",
