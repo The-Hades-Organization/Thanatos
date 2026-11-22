@@ -7,14 +7,17 @@ use gpui::{
     App, AppContext, Context, Entity, FocusHandle, InteractiveElement, IntoElement, KeyDownEvent,
     ParentElement, Render, SharedString, StatefulInteractiveElement, Styled, Window, div, px,
 };
+use gpui_component::input::{InputEvent, InputState};
 use hades_core::Env;
 use hades_ui::components::{
-    Align, Button, Card, CopyButton, DataTable, EmptyState, MarkdownView, PageHeader, Rail,
-    RailGroup, RailItem, StatusBadge, StatusBar, TermBlock, Timeline, TopBar,
+    Align, Button, Card, Confirm, CopyButton, DataTable, EmptyState, MarkdownView, PageHeader,
+    Rail, RailGroup, RailItem, Segmented, StatusBadge, StatusBar, TermBlock, TextField, Timeline,
+    TopBar,
 };
 use hades_ui::{Tone, palette};
 
-use crate::service::{self, Documento};
+use crate::service::{self, Contexto, Criado, Documento};
+use crate::vm::novo::{self, AVISO_REFAZER, Confirmacao, Modo, Validacao};
 use crate::vm::{self, COLUNAS_LISTA, Tarefa, Tela};
 use thanatos_core::model::IndexEntry;
 
@@ -35,10 +38,34 @@ pub struct ThanatosView {
     tique: u32,
     t_lista: Tarefa,
     t_documento: Tarefa,
+    ctx: Option<Contexto>,
+    campo: Entity<InputState>,
+    modo: Modo,
+    validacao: Validacao,
+    resultado: Option<Result<Criado, String>>,
+    confirmacao: Confirmacao,
+    t_criar: Tarefa,
+    t_editor: Tarefa,
 }
 
 impl ThanatosView {
-    pub fn new(env: Env, cwd: PathBuf, foco: FocusHandle, cx: &mut Context<Self>) -> Self {
+    pub fn new(
+        env: Env,
+        cwd: PathBuf,
+        foco: FocusHandle,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Self {
+        let campo = cx.new(|cx| InputState::new(window, cx).placeholder(Modo::default().dica()));
+        cx.subscribe_in(&campo, window, |v, _, e: &InputEvent, _, cx| match e {
+            InputEvent::Change => {
+                v.revalidar(cx);
+                cx.notify();
+            }
+            InputEvent::PressEnter { .. } => v.gerar(cx),
+            _ => {}
+        })
+        .detach();
         let mut view = Self {
             tela: Tela::Postmortems,
             dir: None,
@@ -50,6 +77,14 @@ impl ThanatosView {
             tique: 0,
             t_lista: Tarefa::default(),
             t_documento: Tarefa::default(),
+            ctx: None,
+            campo,
+            modo: Modo::default(),
+            validacao: Validacao::Vazia,
+            resultado: None,
+            confirmacao: Confirmacao::default(),
+            t_criar: Tarefa::default(),
+            t_editor: Tarefa::default(),
             env,
             cwd,
         };
@@ -62,17 +97,17 @@ impl ThanatosView {
         let Some(g) = self.t_lista.iniciar() else {
             return;
         };
-        let (env, cwd, dir) = (self.env.clone(), self.cwd.clone(), self.dir.clone());
+        let (env, cwd, ctx) = (self.env.clone(), self.cwd.clone(), self.ctx.clone());
         cx.spawn(async move |this, cx| {
             let r = cx
                 .background_executor()
                 .spawn(async move {
-                    let dir = match dir {
-                        Some(d) => d,
-                        None => service::pasta(&env, &cwd).map_err(|e| e.to_string())?,
+                    let ctx = match ctx {
+                        Some(c) => c,
+                        None => service::contexto(&env, &cwd).map_err(|e| e.to_string())?,
                     };
-                    let lista = service::listar(&dir);
-                    Ok::<_, String>((dir, lista))
+                    let lista = service::listar(&ctx.dir);
+                    Ok::<_, String>((ctx, lista))
                 })
                 .await;
             let _ = this.update(cx, |v, cx| {
@@ -80,8 +115,10 @@ impl ThanatosView {
                     return;
                 }
                 match r {
-                    Ok((dir, lista)) => {
-                        v.dir = Some(dir);
+                    Ok((ctx, lista)) => {
+                        v.dir = Some(ctx.dir.clone());
+                        v.ctx = Some(ctx);
+                        v.revalidar(cx);
                         let novo = vm::selecao_valida(&lista, v.selecionado.as_deref());
                         let mudou = novo != v.selecionado;
                         v.lista = lista;
@@ -127,6 +164,117 @@ impl ThanatosView {
                         v.documento = None;
                         v.aviso = Some(e);
                     }
+                }
+                cx.notify();
+            });
+        })
+        .detach();
+    }
+
+    fn revalidar(&mut self, cx: &mut Context<Self>) {
+        let texto = self.campo.read(cx).value();
+        let padrao = self.ctx.as_ref().and_then(|c| c.card_pattern.as_deref());
+        self.validacao = novo::validar(self.modo, &texto, padrao);
+    }
+
+    fn mudar_modo(&mut self, modo: Modo, window: &mut Window, cx: &mut Context<Self>) {
+        self.modo = modo;
+        self.campo
+            .update(cx, |c, cx| c.set_placeholder(modo.dica(), window, cx));
+        self.revalidar(cx);
+        cx.notify();
+    }
+
+    /// Por que "Gerar" está desligado, ou `None` se pode gerar.
+    fn motivo_sem_gerar(&self) -> Option<&'static str> {
+        if self.ctx.is_none() {
+            return Some("projeto ainda não carregado");
+        }
+        if self.t_criar.carregando() {
+            return Some("gerando…");
+        }
+        let Some(id) = self.validacao.id() else {
+            return Some("informe uma entrada válida");
+        };
+        self.lista
+            .iter()
+            .any(|e| e.id == id)
+            .then_some("já existe: use Refazer em Post-mortems")
+    }
+
+    fn gerar(&mut self, cx: &mut Context<Self>) {
+        if self.motivo_sem_gerar().is_some() {
+            return;
+        }
+        let texto = self.campo.read(cx).value().to_string();
+        self.criar(texto, false, cx);
+    }
+
+    /// Roda `criar` no executor de fundo; ao voltar, mostra o resultado e abre o documento gravado.
+    fn criar(&mut self, texto: String, force: bool, cx: &mut Context<Self>) {
+        let Some(ctx) = self.ctx.clone() else {
+            return;
+        };
+        let Some(g) = self.t_criar.iniciar() else {
+            return;
+        };
+        self.resultado = None;
+        let env = self.env.clone();
+        cx.notify();
+        cx.spawn(async move |this, cx| {
+            let r = cx
+                .background_executor()
+                .spawn(async move { service::criar(&env, &ctx, &texto, force) })
+                .await;
+            let _ = this.update(cx, |v, cx| {
+                if !v.t_criar.concluir(g) {
+                    return;
+                }
+                if let Ok(c) = &r {
+                    v.selecionado = Some(c.id.clone());
+                    v.documento = None;
+                    v.recarregar(cx);
+                    v.abrir_selecionado(cx);
+                }
+                v.resultado = Some(r);
+                cx.notify();
+            });
+        })
+        .detach();
+    }
+
+    /// Refazer confirmado: regera a partir da entrada gravada no `.json`, com `force`.
+    fn refazer(&mut self, cx: &mut Context<Self>) {
+        let Some(id) = self.confirmacao.confirmar() else {
+            return;
+        };
+        let texto = match &self.documento {
+            Some(d) if d.postmortem.id == id => novo::entrada_do_documento(&d.postmortem.input),
+            _ => return,
+        };
+        self.tela = Tela::Novo;
+        self.criar(texto, true, cx);
+    }
+
+    /// Abre o `.md` no editor do sistema, fora da thread da interface.
+    fn editar(&mut self, cx: &mut Context<Self>) {
+        let Some(caminho) = self.documento.as_ref().map(|d| d.caminho_md.clone()) else {
+            return;
+        };
+        let Some(g) = self.t_editor.iniciar() else {
+            return;
+        };
+        cx.spawn(async move |this, cx| {
+            let r = cx
+                .background_executor()
+                .spawn(async move { service::abrir_no_editor(&caminho) })
+                .await;
+            let _ = this.update(cx, |v, cx| {
+                if !v.t_editor.concluir(g) {
+                    return;
+                }
+                if let Err(e) = r {
+                    v.aviso = Some(e);
                 }
                 cx.notify();
             });
@@ -277,13 +425,48 @@ impl ThanatosView {
             .into_any_element()
     }
 
+    fn botoes_do_documento(&self, cx: &mut Context<Self>) -> (Button, Button) {
+        let e = cx.entity();
+        let mut refazer = Button::new("refazer", "Refazer");
+        let mut editar = Button::new("editar", "Editar .md");
+        match &self.documento {
+            None => {
+                refazer = refazer.disabled("nenhum documento aberto");
+                editar = editar.disabled("nenhum documento aberto");
+            }
+            Some(doc) => {
+                if self.t_criar.carregando() {
+                    refazer = refazer.disabled("gerando…");
+                } else {
+                    let id = doc.postmortem.id.clone();
+                    let e = e.clone();
+                    refazer = refazer.on_click(move |_, _, cx| {
+                        let id = id.clone();
+                        e.update(cx, |v, cx| {
+                            v.confirmacao.pedir(&id);
+                            cx.notify();
+                        });
+                    });
+                }
+                if doc.markdown.is_none() {
+                    editar = editar.disabled("o .md foi removido");
+                } else {
+                    editar = editar.on_click(move |_, _, cx| e.update(cx, |v, cx| v.editar(cx)));
+                }
+            }
+        }
+        (refazer, editar)
+    }
+
     fn tela_postmortems(&self, cx: &mut Context<Self>) -> gpui::AnyElement {
-        let cabecalho = PageHeader::new("Post-mortems").action(
-            Button::new("recarregar", "Recarregar").on_click({
+        let (refazer, editar) = self.botoes_do_documento(cx);
+        let cabecalho = PageHeader::new("Post-mortems")
+            .action(editar)
+            .action(refazer)
+            .action(Button::new("recarregar", "Recarregar").on_click({
                 let e = cx.entity();
                 move |_, _, cx| e.update(cx, |v, cx| v.recarregar(cx))
-            }),
-        );
+            }));
         let coluna = div().flex().flex_col().gap(px(14.0)).child(cabecalho);
         if self.lista.is_empty() {
             let (titulo, dica) = if self.t_lista.carregando() {
@@ -316,6 +499,59 @@ impl ThanatosView {
                     .child(self.painel_do_documento()),
             );
         coluna.child(corpo).into_any_element()
+    }
+
+    fn tela_novo(&self, cx: &mut Context<Self>) -> gpui::AnyElement {
+        let e = cx.entity();
+        let modos = Segmented::new("modo", Modo::TODOS.map(Modo::rotulo))
+            .selected(self.modo.indice())
+            .on_select(move |i, window, cx| {
+                e.update(cx, |v, cx| v.mudar_modo(Modo::de_indice(i), window, cx));
+            });
+        let campo = TextField::new(&self.campo)
+            .label("Entrada")
+            .error_opt(self.validacao.erro().map(str::to_owned));
+        let mut gerar = Button::new("gerar", "Gerar").primary();
+        gerar = match self.motivo_sem_gerar() {
+            Some(motivo) => gerar.disabled(motivo),
+            None => {
+                let e = cx.entity();
+                gerar.on_click(move |_, _, cx| e.update(cx, |v, cx| v.gerar(cx)))
+            }
+        };
+        let mut formulario = Card::new()
+            .title("Novo post-mortem")
+            .child(modos)
+            .child(campo)
+            .child(div().flex().gap(px(10.0)).child(gerar));
+        if let Some(id) = self.validacao.id() {
+            formulario = formulario.child(format!("Será gravado como {id}."));
+        }
+        let mut coluna = div()
+            .flex()
+            .flex_col()
+            .gap(px(14.0))
+            .child(PageHeader::new("Novo"))
+            .child(formulario);
+        if self.t_criar.carregando() {
+            coluna = coluna.child(
+                EmptyState::new("Gerando…").hint("Coletando git, gh, diário e fonte externa."),
+            );
+        }
+        match &self.resultado {
+            Some(Ok(c)) => {
+                let mut bloco = TermBlock::new();
+                for l in novo::linhas_do_resultado(c) {
+                    bloco = bloco.line(l);
+                }
+                coluna = coluna.child(Card::new().title("Gravado").child(bloco));
+            }
+            Some(Err(msg)) => {
+                coluna = coluna.child(Card::new().title("Não gerou").child(msg.clone()));
+            }
+            None => {}
+        }
+        coluna.into_any_element()
     }
 
     fn tela_fontes(&self) -> gpui::AnyElement {
@@ -367,12 +603,40 @@ impl Render for ThanatosView {
         let rail = self.rail(cx);
         let corpo = match self.tela {
             Tela::Postmortems => self.tela_postmortems(cx),
+            Tela::Novo => self.tela_novo(cx),
             Tela::Fontes => self.tela_fontes(),
         };
+        let confirmar = self.confirmacao.pendente().map(|id| {
+            let (sim, nao) = (cx.entity(), cx.entity());
+            Confirm::new(format!("Refazer {id}?"))
+                .detail(AVISO_REFAZER)
+                .target(
+                    self.documento
+                        .as_ref()
+                        .map(|d| d.caminho_md.display().to_string())
+                        .unwrap_or_default(),
+                )
+                .confirm_label("Refazer")
+                .on_confirm(move |_, _, cx| {
+                    sim.update(cx, |v, cx| {
+                        v.refazer(cx);
+                        cx.notify();
+                    });
+                })
+                .on_cancel(move |_, _, cx| {
+                    nao.update(cx, |v, cx| {
+                        v.confirmacao.cancelar();
+                        cx.notify();
+                    });
+                })
+        });
         div()
             .id("thanatos")
             .track_focus(&self.foco)
             .on_key_down(cx.listener(|v, ev: &KeyDownEvent, _, cx| {
+                if v.tela == Tela::Novo {
+                    return;
+                }
                 if let Some(t) = vm::tela_da_tecla(&ev.keystroke.key) {
                     v.mudar_tela(t, cx);
                     cx.notify();
@@ -393,6 +657,7 @@ impl Render for ThanatosView {
                     .child(div().flex_1().p(px(16.0)).child(corpo)),
             )
             .child(StatusBar::new(esquerda, direita))
+            .children(confirmar)
     }
 }
 
@@ -402,7 +667,7 @@ pub fn abrir_janela(cx: &mut App) {
         let cwd = std::env::current_dir().unwrap_or_default();
         let view: Entity<ThanatosView> = cx.new(|cx| {
             ThanatosView::iniciar(cx);
-            ThanatosView::new(Env::from_process(), cwd, cx.focus_handle(), cx)
+            ThanatosView::new(Env::from_process(), cwd, cx.focus_handle(), window, cx)
         });
         view
     });

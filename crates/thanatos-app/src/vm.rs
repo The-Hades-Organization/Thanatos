@@ -4,19 +4,23 @@ use hades_ui::Tone;
 use thanatos_core::model::{IndexEntry, Postmortem, SourceStatus, TimelineEntry, TimelineSource};
 use thanatos_core::render::format_duration;
 
-/// Telas da navegação lateral (`design/thanatos.html`). Novo, Refazer e Editar entram na PR 9.
+pub mod novo;
+
+/// Telas da navegação lateral (`design/thanatos.html`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Tela {
     Postmortems,
+    Novo,
     Fontes,
 }
 
 impl Tela {
-    pub const TODAS: [Tela; 2] = [Tela::Postmortems, Tela::Fontes];
+    pub const TODAS: [Tela; 3] = [Tela::Postmortems, Tela::Novo, Tela::Fontes];
 
     pub fn rotulo(self) -> &'static str {
         match self {
             Tela::Postmortems => "Post-mortems",
+            Tela::Novo => "Novo",
             Tela::Fontes => "Fontes",
         }
     }
@@ -26,11 +30,12 @@ impl Tela {
     }
 }
 
-/// Atalho de teclado: `1` e `2` trocam de tela.
+/// Atalho de teclado: `1`, `2` e `3` trocam de tela.
 pub fn tela_da_tecla(tecla: &str) -> Option<Tela> {
     match tecla {
         "1" => Some(Tela::Postmortems),
-        "2" => Some(Tela::Fontes),
+        "2" => Some(Tela::Novo),
+        "3" => Some(Tela::Fontes),
         _ => None,
     }
 }

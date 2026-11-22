@@ -16,6 +16,7 @@ path = "src/main.rs"
 [dependencies]
 thanatos-core = { path = "../thanatos-core" }
 hades-core.workspace = true
+serde_json.workspace = true
 hades-ui.workspace = true
 gpui.workspace = true
 gpui_platform.workspace = true

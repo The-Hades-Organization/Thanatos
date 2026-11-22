@@ -81,9 +81,11 @@ fn documento() -> Postmortem {
 #[test]
 fn tela_por_rotulo_e_por_tecla() {
     assert_eq!(Tela::de_rotulo("Fontes"), Some(Tela::Fontes));
-    assert_eq!(Tela::de_rotulo("Novo"), None);
+    assert_eq!(Tela::de_rotulo("Novo"), Some(Tela::Novo));
+    assert_eq!(Tela::de_rotulo("nada"), None);
     assert_eq!(tela_da_tecla("1"), Some(Tela::Postmortems));
-    assert_eq!(tela_da_tecla("2"), Some(Tela::Fontes));
+    assert_eq!(tela_da_tecla("2"), Some(Tela::Novo));
+    assert_eq!(tela_da_tecla("3"), Some(Tela::Fontes));
     assert_eq!(tela_da_tecla("x"), None);
 }
 

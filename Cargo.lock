@@ -6348,6 +6348,7 @@ dependencies = [
  "gpui-pre-platform",
  "hades-core",
  "hades-ui",
+ "serde_json",
  "thanatos-core",
 ]
 
