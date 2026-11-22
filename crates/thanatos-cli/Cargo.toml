@@ -11,7 +11,11 @@ path = "src/main.rs"
 
 [dependencies]
 thanatos-core = { path = "../thanatos-core" }
-clap.workspace = true
+hades-core.workspace = true
+serde_json.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
 
 [lints]
 workspace = true

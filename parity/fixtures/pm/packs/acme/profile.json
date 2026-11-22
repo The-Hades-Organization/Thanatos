@@ -1,0 +1,8 @@
+{
+  "schema": "hades.profile/1",
+  "name": "acme",
+  "identity": { "repo": "acme/demo" },
+  "flow": { "kind": "pr", "base": "main" },
+  "card": { "provider": "clickup", "idPattern": "FIX-[0-9]+" },
+  "env": { "pack": "env" }
+}

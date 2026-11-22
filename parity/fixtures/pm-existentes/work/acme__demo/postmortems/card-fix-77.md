@@ -1,0 +1,38 @@
+# Post-mortem card-fix-77: fix: retry no gateway FIX-77
+
+Gerado em 2026-03-02T12:00:00Z (UTC) por `hades thanatos new`. Todos os horários estão em UTC.
+
+## Resumo
+1 PR(s) de correção mergeada(s): #12 fix: retry no gateway FIX-77.
+
+## Impacto
+Checkout fora do ar por 2h.
+
+## Linha do tempo (UTC)
+- 2026-03-01T14:00:00Z · git · commit aaaaaaaaaaaa (ana): fix: retry
+- 2026-03-01T14:10:00Z · fonte · retry ativo
+- 2026-03-01T14:30:00Z · fonte · [error] erro 502 no gateway token=***
+- 2026-03-01T15:00:00Z · gh · PR #12 aberta por ana: fix: retry no gateway FIX-77
+- 2026-03-01T16:00:00Z · gh · review em #12 de bia: APPROVED
+- 2026-03-01T17:00:00Z · gh · PR #12 mergeada
+
+## Causa
+Timeout sem retry no gateway.
+
+## Como foi corrigido
+Retry com backoff.
+
+## Dados da correção
+- PRs: #12 (ana, 2026-03-01T17:00:00Z)
+- Commits: 1
+- Autores: ana
+- Tempo até a correção: 3h 0min (2026-03-01T14:00:00Z → 2026-03-01T17:00:00Z, base: primeiro-commit)
+- Arquivos:
+  - `src/gateway.ts`
+  - `src/pay.ts`
+
+## Métricas da fonte externa
+- p99: 3.2 s (2026-03-01T14:00:00Z)
+
+## Lacunas
+- (nenhum)

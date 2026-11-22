@@ -1,0 +1,1 @@
+{ "commands": [{ "name": "thanatos-source", "script": "commands/thanatos-source.sh", "tokenKey": "FONTE_TOKEN" }] }
