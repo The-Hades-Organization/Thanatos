@@ -10,7 +10,7 @@ repository = "https://github.com/The-Hades-Organization/Thanatos"
 
 [workspace.dependencies]
 hades-core = { git = "https://github.com/The-Hades-Organization/Hades-Core", tag = "v0.2.1" }
-hades-ui = { git = "https://github.com/The-Hades-Organization/Hades-UI", tag = "v0.1.1" }
+hades-ui = { git = "https://github.com/The-Hades-Organization/Hades-UI", tag = "v0.1.2" }
 clap = { version = "4", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }
