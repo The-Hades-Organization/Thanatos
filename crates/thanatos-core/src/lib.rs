@@ -6,5 +6,7 @@ pub mod jsdate;
 pub mod jsstr;
 pub mod model;
 pub mod render;
+pub mod routes;
+pub mod rules;
 pub mod settings;
 pub mod store;
