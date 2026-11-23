@@ -11,9 +11,9 @@ use gpui::{
 use gpui_component::input::{InputEvent, InputState};
 use hades_core::Env;
 use hades_ui::components::{
-    Align, Button, Card, Confirm, CopyButton, DataTable, EmptyState, MarkdownView, PageHeader,
-    Rail, RailBrand, RailGroup, RailItem, Segmented, Skeleton, Spinner, StatusBadge, StatusBar,
-    RailStat, Page, TermBlock, TextField, Timeline,
+    Align, Button, Card, Confirm, CopyButton, DataTable, EmptyState, MarkdownView, Page,
+    PageHeader, Rail, RailBrand, RailGroup, RailItem, RailStat, Segmented, Skeleton, Spinner,
+    StatusBadge, StatusBar, TermBlock, TextField, Timeline,
 };
 use hades_ui::icons::IconName;
 use hades_ui::tokens::space;
@@ -609,7 +609,9 @@ impl ThanatosView {
         let Some(doc) = &self.documento else {
             return coluna.child(
                 EmptyState::new("Nenhum post-mortem aberto")
-                    .hint("Escolha um post-mortem em Post-mortems para ver o que cada fonte trouxe.")
+                    .hint(
+                        "Escolha um post-mortem em Post-mortems para ver o que cada fonte trouxe.",
+                    )
                     .fill(),
             );
         };
@@ -623,7 +625,7 @@ impl ThanatosView {
             if let Some(nota) = c.nota {
                 cartao = cartao.child(nota);
             }
-            cartoes = cartoes.child(div().flex_1().child(cartao));
+            cartoes = cartoes.child(div().flex().flex_col().flex_1().child(cartao.fill()));
         }
         let mut coluna = coluna.child(cartoes);
         let metricas = vm::linhas_das_metricas(pm);
@@ -634,7 +636,7 @@ impl ThanatosView {
             }
             coluna = coluna.child(Card::new().title("Métricas da fonte externa").child(bloco));
         }
-        let mut lacunas = Card::new().title("Lacunas");
+        let mut lacunas = Card::new().title("Lacunas").fill();
         if pm.gaps.is_empty() {
             lacunas = lacunas.child("Nenhuma lacuna registrada.");
         }
@@ -696,14 +698,7 @@ impl Render for ThanatosView {
             .flex_col()
             .bg(p.bg)
             .text_color(p.fg)
-            .child(
-                div()
-                    .flex_1()
-                    .flex()
-                    .min_h_0()
-                    .child(rail)
-                    .child(corpo),
-            )
+            .child(div().flex_1().flex().min_h_0().child(rail).child(corpo))
             .child(StatusBar::new(esquerda, direita))
             .children(confirmar)
     }
