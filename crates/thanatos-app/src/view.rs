@@ -6,14 +6,16 @@ use std::time::Duration;
 use gpui::{
     App, AppContext, Context, Entity, FocusHandle, InteractiveElement, IntoElement, KeyDownEvent,
     ParentElement, Render, SharedString, StatefulInteractiveElement, Styled, Window, div, px,
+    relative,
 };
 use gpui_component::input::{InputEvent, InputState};
 use hades_core::Env;
 use hades_ui::components::{
     Align, Button, Card, Confirm, CopyButton, DataTable, EmptyState, MarkdownView, PageHeader,
-    Rail, RailGroup, RailItem, Segmented, StatusBadge, StatusBar, TermBlock, TextField, Timeline,
-    TopBar,
+    Rail, RailGroup, RailItem, Segmented, Skeleton, Spinner, StatusBadge, StatusBar, TermBlock,
+    TextField, Timeline, TopBar,
 };
+use hades_ui::tokens::space;
 use hades_ui::{Tone, palette};
 
 use crate::service::{self, Contexto, Criado, Documento};
@@ -23,7 +25,7 @@ use thanatos_core::model::IndexEntry;
 
 const PERIODO_MS: u64 = 1000;
 const TIQUES_LISTA: u32 = 5;
-const LARGURA_LISTA: f32 = 380.0;
+const FRACAO_LISTA: f32 = 0.34;
 
 pub struct ThanatosView {
     env: Env,
@@ -320,6 +322,17 @@ impl ThanatosView {
         self.recarregar(cx);
     }
 
+    fn esqueleto(&self, id: &'static str) -> gpui::AnyElement {
+        div()
+            .flex()
+            .flex_col()
+            .gap(px(space::SM))
+            .child(Skeleton::new(format!("{id}-1")))
+            .child(Skeleton::new(format!("{id}-2")))
+            .child(Skeleton::new(format!("{id}-3")))
+            .into_any_element()
+    }
+
     fn rodape(&self) -> (String, String) {
         let esquerda = self.aviso.clone().unwrap_or_else(|| {
             if self.t_lista.carregando() || self.t_documento.carregando() {
@@ -338,24 +351,27 @@ impl ThanatosView {
 
     fn rail(&self, cx: &mut Context<Self>) -> Rail {
         let entidade = cx.entity();
-        let itens = Tela::TODAS.map(|t| {
+        let item = |t: Tela| {
             let item = RailItem::new(t.rotulo());
             if t == Tela::Postmortems {
                 item.badge(self.lista.len().to_string())
             } else {
                 item
             }
-        });
-        Rail::new([RailGroup::new("Thanatos", itens)])
-            .selected(self.tela.rotulo())
-            .on_select(move |rotulo, _, cx| {
-                if let Some(t) = Tela::de_rotulo(rotulo) {
-                    entidade.update(cx, |v, cx| {
-                        v.mudar_tela(t, cx);
-                        cx.notify();
-                    });
-                }
-            })
+        };
+        Rail::new([
+            RailGroup::new("Consulta", [item(Tela::Postmortems), item(Tela::Fontes)]),
+            RailGroup::new("Geração", [item(Tela::Novo)]),
+        ])
+        .selected(self.tela.rotulo())
+        .on_select(move |rotulo, _, cx| {
+            if let Some(t) = Tela::de_rotulo(rotulo) {
+                entidade.update(cx, |v, cx| {
+                    v.mudar_tela(t, cx);
+                    cx.notify();
+                });
+            }
+        })
     }
 
     fn titulo(&self) -> String {
@@ -400,6 +416,9 @@ impl ThanatosView {
                     "O .json não pôde ser lido; o .md segue no disco.",
                 )
             };
+            if self.t_documento.carregando() {
+                return self.esqueleto("documento").into_any_element();
+            }
             return EmptyState::new(titulo).hint(dica).into_any_element();
         };
         let pm = &doc.postmortem;
@@ -410,7 +429,7 @@ impl ThanatosView {
                 Tone::Neutral,
             ))
             .action(CopyButton::new("copiar-caminho", caminho).label("Copiar caminho"));
-        let mut coluna = div().flex().flex_col().gap(px(14.0)).child(cabecalho);
+        let mut coluna = div().flex().flex_col().gap(px(space::LG)).child(cabecalho);
         coluna = match &doc.markdown {
             Some(md) => coluna.child(MarkdownView::new(vm::sem_linha_do_tempo(md))),
             None => coluna
@@ -467,7 +486,7 @@ impl ThanatosView {
                 let e = cx.entity();
                 move |_, _, cx| e.update(cx, |v, cx| v.recarregar(cx))
             }));
-        let coluna = div().flex().flex_col().gap(px(14.0)).child(cabecalho);
+        let coluna = div().flex().flex_col().gap(px(space::LG)).child(cabecalho);
         if self.lista.is_empty() {
             let (titulo, dica) = if self.t_lista.carregando() {
                 ("Carregando…", "Lendo a pasta de post-mortems.")
@@ -477,24 +496,27 @@ impl ThanatosView {
                     "Rode `thanatos new <pr|intervalo|card>` para gerar o primeiro.",
                 )
             };
+            if self.t_lista.carregando() {
+                return coluna.child(self.esqueleto("lista")).into_any_element();
+            }
             return coluna
                 .child(EmptyState::new(titulo).hint(dica))
                 .into_any_element();
         }
         let corpo = div()
             .flex()
-            .gap(px(16.0))
+            .gap(px(space::LG))
             .child(
                 div()
                     .flex_none()
-                    .w(px(LARGURA_LISTA))
+                    .w(relative(FRACAO_LISTA))
                     .child(self.tabela_da_lista(cx)),
             )
             .child(
                 div()
                     .id("documento")
                     .flex_1()
-                    .min_w(px(0.0))
+                    .min_w_0()
                     .overflow_y_scroll()
                     .child(self.painel_do_documento()),
             );
@@ -523,19 +545,27 @@ impl ThanatosView {
             .title("Novo post-mortem")
             .child(modos)
             .child(campo)
-            .child(div().flex().gap(px(10.0)).child(gerar));
+            .child(div().flex().gap(px(space::SM)).child(gerar));
         if let Some(id) = self.validacao.id() {
             formulario = formulario.child(format!("Será gravado como {id}."));
         }
         let mut coluna = div()
             .flex()
             .flex_col()
-            .gap(px(14.0))
+            .gap(px(space::LG))
             .child(PageHeader::new("Novo"))
             .child(formulario);
         if self.t_criar.carregando() {
             coluna = coluna.child(
-                EmptyState::new("Gerando…").hint("Coletando git, gh, diário e fonte externa."),
+                Card::new().title("Gerando…").child(
+                    div()
+                        .flex()
+                        .items_center()
+                        .gap(px(space::SM))
+                        .child(Spinner::new("gerando"))
+                        .child(StatusBadge::new("coletando", Tone::Busy))
+                        .child("git, gh, diário e fonte externa"),
+                ),
             );
         }
         match &self.resultado {
@@ -556,7 +586,7 @@ impl ThanatosView {
 
     fn tela_fontes(&self) -> gpui::AnyElement {
         let cabecalho = PageHeader::new("Fontes");
-        let coluna = div().flex().flex_col().gap(px(14.0)).child(cabecalho);
+        let coluna = div().flex().flex_col().gap(px(space::LG)).child(cabecalho);
         let Some(doc) = &self.documento else {
             return coluna
                 .child(EmptyState::new("Nenhum post-mortem aberto").hint(
@@ -565,7 +595,7 @@ impl ThanatosView {
                 .into_any_element();
         };
         let pm = &doc.postmortem;
-        let mut cartoes = div().flex().gap(px(12.0));
+        let mut cartoes = div().flex().gap(px(space::MD));
         for c in vm::cartoes_das_fontes(pm) {
             let mut cartao = Card::new()
                 .title(c.nome)
@@ -652,9 +682,9 @@ impl Render for ThanatosView {
                 div()
                     .flex_1()
                     .flex()
-                    .min_h(px(0.0))
+                    .min_h_0()
                     .child(rail)
-                    .child(div().flex_1().p(px(16.0)).child(corpo)),
+                    .child(div().flex_1().p(px(space::LG)).child(corpo)),
             )
             .child(StatusBar::new(esquerda, direita))
             .children(confirmar)
