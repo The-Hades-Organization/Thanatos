@@ -10,7 +10,7 @@ Thanatos: ferramenta do Hades, reescrita em Rust.
 
 ## Estado
 
-F0, em construção. Só o esqueleto do workspace existe; nada da ferramenta foi portado ainda.
+CLI e app portados; o app é embutível no painel do Hades (`FerramentaEmbutida`, Hades-UI v0.3.0).
 
 ## Relação com o Hades-Skill
 

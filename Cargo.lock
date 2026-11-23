@@ -2622,8 +2622,8 @@ dependencies = [
 
 [[package]]
 name = "hades-core"
-version = "0.2.3"
-source = "git+https://github.com/The-Hades-Organization/Hades-Core?tag=v0.2.3#f6f6e9e91ab2334cf99450548c499442cd4ad433"
+version = "0.2.7"
+source = "git+https://github.com/The-Hades-Organization/Hades-Core?tag=v0.2.7#a62a7b4c97f76b07037eeb7a0a17bde0ba7393f8"
 dependencies = [
  "regex",
  "rustix",
@@ -2633,8 +2633,8 @@ dependencies = [
 
 [[package]]
 name = "hades-ui"
-version = "0.2.5"
-source = "git+https://github.com/The-Hades-Organization/Hades-UI?tag=v0.2.5#6e450ed0d1c6812c150a2f0909e5b350dab20207"
+version = "0.3.0"
+source = "git+https://github.com/The-Hades-Organization/Hades-UI?tag=v0.3.0#48126e7796ed99e5883bc334dd3c66519ee71dcf"
 dependencies = [
  "gpui-component",
  "gpui-pre",

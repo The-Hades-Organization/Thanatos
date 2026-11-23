@@ -17,6 +17,7 @@ use hades_ui::components::{
     SettingRow, SettingsBar, SettingsGroup, Skeleton, Spinner, StatusBadge, StatusBar, TermBlock,
     TextField, Timeline,
 };
+use hades_ui::embed::{Embutida, FerramentaEmbutida, FerramentaInfo};
 use hades_ui::icons::IconName;
 use hades_ui::tokens::space;
 use hades_ui::{Tone, palette};
@@ -60,6 +61,7 @@ pub struct ThanatosView {
     campos_config: Vec<Option<Entity<InputState>>>,
     t_config: Tarefa,
     t_gravar: Tarefa,
+    opts: Embutida,
 }
 
 impl ThanatosView {
@@ -107,6 +109,7 @@ impl ThanatosView {
             campos_config: Vec::new(),
             t_config: Tarefa::default(),
             t_gravar: Tarefa::default(),
+            opts: Embutida::default(),
             env,
             cwd,
         };
@@ -705,12 +708,10 @@ impl ThanatosView {
                 if self.t_criar.carregando() {
                     refazer = refazer.disabled("gerando…");
                 } else {
-                    let id = doc.postmortem.id.clone();
                     let e = e.clone();
                     refazer = refazer.on_click(move |_, _, cx| {
-                        let id = id.clone();
                         e.update(cx, |v, cx| {
-                            v.confirmacao.pedir(&id);
+                            v.pedir_refazer();
                             cx.notify();
                         });
                     });
@@ -898,21 +899,22 @@ impl ThanatosView {
     }
 }
 
-impl Render for ThanatosView {
-    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+impl ThanatosView {
+    /// Miolo da tela atual, sem trilho nem barra de status.
+    fn corpo(&mut self, window: &mut Window, cx: &mut Context<Self>) -> gpui::AnyElement {
         if self.tela == Tela::Configuracoes {
             self.garantir_campos_config(window, cx);
         }
-        let p = palette(cx);
-        let (esquerda, direita) = self.rodape();
-        let rail = self.rail(cx);
-        let corpo = match self.tela {
+        match self.tela {
             Tela::Postmortems => self.tela_postmortems(cx).into_any_element(),
             Tela::Novo => self.tela_novo(cx).into_any_element(),
             Tela::Fontes => self.tela_fontes().into_any_element(),
             Tela::Configuracoes => self.tela_configuracoes(cx).into_any_element(),
-        };
-        let confirmar = self.confirmacao.pendente().map(|id| {
+        }
+    }
+
+    fn confirmar(&self, cx: &mut Context<Self>) -> Option<Confirm> {
+        self.confirmacao.pendente().map(|id| {
             let (sim, nao) = (cx.entity(), cx.entity());
             Confirm::new(format!("Refazer {id}?"))
                 .detail(AVISO_REFAZER)
@@ -935,7 +937,27 @@ impl Render for ThanatosView {
                         cx.notify();
                     });
                 })
-        });
+        })
+    }
+
+    /// Pede a confirmação de Refazer do documento aberto, como o botão.
+    fn pedir_refazer(&mut self) {
+        if self.t_criar.carregando() {
+            return;
+        }
+        if let Some(id) = self.documento.as_ref().map(|d| d.postmortem.id.clone()) {
+            self.confirmacao.pedir(&id);
+        }
+    }
+}
+
+impl Render for ThanatosView {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let p = palette(cx);
+        let (esquerda, direita) = self.rodape();
+        let rail = self.rail(cx);
+        let corpo = self.corpo(window, cx);
+        let confirmar = self.confirmar(cx);
         div()
             .id("thanatos")
             .track_focus(&self.foco)
@@ -959,6 +981,64 @@ impl Render for ThanatosView {
                     .version(concat!("thanatos ", env!("CARGO_PKG_VERSION"))),
             )
             .children(confirmar)
+    }
+}
+
+impl FerramentaEmbutida for ThanatosView {
+    /// Ambiente e pasta do projeto.
+    type Ambiente = (Env, PathBuf);
+
+    fn info() -> FerramentaInfo {
+        vm::INFO
+    }
+
+    fn embutida(
+        (env, cwd): (Env, PathBuf),
+        foco: Option<&str>,
+        opts: Embutida,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Self {
+        ThanatosView::iniciar(cx);
+        let mut v = ThanatosView::new(env, cwd, cx.focus_handle(), window, cx);
+        v.opts = opts;
+        let tela = vm::tela_embutida(foco, opts);
+        if tela != v.tela {
+            v.mudar_tela(tela, cx);
+        }
+        v
+    }
+
+    fn render_tela(
+        &mut self,
+        tela: &str,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> gpui::AnyElement {
+        let tela = vm::tela_embutida(Some(tela), self.opts);
+        if tela != self.tela {
+            self.mudar_tela(tela, cx);
+        }
+        let corpo = self.corpo(window, cx);
+        let confirmar = self.confirmar(cx);
+        div()
+            .size_full()
+            .flex()
+            .min_h_0()
+            .child(corpo)
+            .children(confirmar)
+            .into_any_element()
+    }
+
+    fn executar(&mut self, comando: &str, _window: &mut Window, cx: &mut Context<Self>) {
+        match comando {
+            vm::CMD_RECARREGAR => self.recarregar(cx),
+            vm::CMD_EDITAR => self.editar(cx),
+            vm::CMD_REFAZER => self.pedir_refazer(),
+            vm::CMD_NOVO => self.mudar_tela(Tela::Novo, cx),
+            _ => return,
+        }
+        cx.notify();
     }
 }
 

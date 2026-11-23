@@ -1,6 +1,8 @@
 //! View-model do app: formatação, linhas e tons, sem janela nem I/O.
 
 use hades_ui::Tone;
+use hades_ui::embed::{Comando, Embutida, FerramentaInfo, TelaInfo};
+use hades_ui::icons::IconName;
 use thanatos_core::model::{IndexEntry, Postmortem, SourceStatus, TimelineEntry, TimelineSource};
 use thanatos_core::render::format_duration;
 
@@ -25,33 +27,21 @@ impl Tela {
     ];
 
     pub fn rotulo(self) -> &'static str {
-        match self {
-            Tela::Postmortems => "Post-mortems",
-            Tela::Novo => "Novo",
-            Tela::Fontes => "Fontes",
-            Tela::Configuracoes => "Configurações",
-        }
+        tela_info(self).rotulo
     }
 
-    pub fn icone(self) -> hades_ui::icons::IconName {
-        use hades_ui::icons::IconName;
-        match self {
-            Tela::Postmortems => IconName::Skull,
-            Tela::Novo => IconName::Plus,
-            Tela::Fontes => IconName::History,
-            Tela::Configuracoes => IconName::SlidersHorizontal,
-        }
+    pub fn icone(self) -> IconName {
+        tela_info(self).icone
     }
 
-    /// Nome de tela aceito em `--tela`.
+    /// Nome de tela aceito em `--tela`; também é o id da tela no painel.
+    pub fn id(self) -> &'static str {
+        tela_info(self).id
+    }
+
+    /// Tela de nome `nome` (`--tela` ou id do painel).
     pub fn de_nome(nome: &str) -> Option<Tela> {
-        match nome {
-            "postmortems" => Some(Tela::Postmortems),
-            "novo" => Some(Tela::Novo),
-            "fontes" => Some(Tela::Fontes),
-            "configuracoes" => Some(Tela::Configuracoes),
-            _ => None,
-        }
+        Tela::TODAS.into_iter().find(|t| t.id() == nome)
     }
 
     pub fn de_rotulo(rotulo: &str) -> Option<Tela> {
@@ -60,6 +50,94 @@ impl Tela {
 }
 
 /// Atalho de teclado: `1` a `4` trocam de tela.
+/// Telas do trilho, na ordem em que o painel as mostra; Configurações fica por último para sair com `integrado`.
+pub const TELAS: &[TelaInfo] = &[
+    tela_info(Tela::Postmortems),
+    tela_info(Tela::Fontes),
+    tela_info(Tela::Novo),
+    tela_info(Tela::Configuracoes),
+];
+
+/// Ações dos botões do app, para a paleta do painel.
+pub const COMANDOS: &[Comando] = &[
+    Comando {
+        id: CMD_RECARREGAR,
+        grupo: "Post-mortems",
+        rotulo: "Recarregar a lista",
+        descricao: Some("Relê os post-mortems gravados"),
+        icone: IconName::RefreshCw,
+        atalho: None,
+    },
+    Comando {
+        id: CMD_EDITAR,
+        grupo: "Post-mortems",
+        rotulo: "Editar .md",
+        descricao: Some("Abre o documento selecionado no editor"),
+        icone: IconName::Pencil,
+        atalho: None,
+    },
+    Comando {
+        id: CMD_REFAZER,
+        grupo: "Post-mortems",
+        rotulo: "Refazer",
+        descricao: Some("Regera o documento selecionado, com confirmação"),
+        icone: IconName::RefreshCw,
+        atalho: None,
+    },
+    Comando {
+        id: CMD_NOVO,
+        grupo: "Geração",
+        rotulo: "Novo post-mortem",
+        descricao: Some("Abre o formulário de geração"),
+        icone: IconName::Plus,
+        atalho: None,
+    },
+];
+
+pub const CMD_RECARREGAR: &str = "recarregar";
+pub const CMD_EDITAR: &str = "editar";
+pub const CMD_REFAZER: &str = "refazer";
+pub const CMD_NOVO: &str = "novo";
+
+const fn tela_info(t: Tela) -> TelaInfo {
+    let (id, rotulo, icone) = match t {
+        Tela::Postmortems => ("postmortems", "Post-mortems", IconName::Skull),
+        Tela::Novo => ("novo", "Novo", IconName::Plus),
+        Tela::Fontes => ("fontes", "Fontes", IconName::History),
+        Tela::Configuracoes => (
+            "configuracoes",
+            "Configurações",
+            IconName::SlidersHorizontal,
+        ),
+    };
+    TelaInfo { id, rotulo, icone }
+}
+
+/// Nome, ícone, telas e comandos do Thanatos para o painel.
+pub const INFO: FerramentaInfo = FerramentaInfo {
+    id: "thanatos",
+    titulo: "Thanatos",
+    icone: IconName::Skull,
+    telas: TELAS,
+    comandos: COMANDOS,
+};
+
+/// Telas que o painel mostra: com `integrado`, sem Configurações (o painel cuida delas).
+pub fn telas(opts: Embutida) -> &'static [TelaInfo] {
+    if opts.integrado {
+        &TELAS[..TELAS.len() - 1]
+    } else {
+        TELAS
+    }
+}
+
+/// Tela de id `id` entre as que o painel mostra; id desconhecido (ou Configurações com `integrado`) cai na primeira.
+pub fn tela_embutida(id: Option<&str>, opts: Embutida) -> Tela {
+    id.filter(|id| telas(opts).iter().any(|t| t.id == *id))
+        .and_then(Tela::de_nome)
+        .unwrap_or(Tela::Postmortems)
+}
+
 pub fn tela_da_tecla(tecla: &str) -> Option<Tela> {
     match tecla {
         "1" => Some(Tela::Postmortems),

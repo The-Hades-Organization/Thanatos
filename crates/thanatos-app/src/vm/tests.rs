@@ -211,3 +211,37 @@ fn rodape_com_plural() {
     assert_eq!(rodape_da_lista(1), "1 post-mortem");
     assert_eq!(rodape_da_lista(3), "3 post-mortems");
 }
+
+#[test]
+fn info_nao_tem_id_repetido() {
+    assert!(INFO.ids_repetidos().is_empty());
+}
+
+#[test]
+fn toda_tela_do_trilho_tem_tela_info() {
+    for t in Tela::TODAS {
+        let info = INFO.tela(t.id()).expect("tela sem TelaInfo");
+        assert_eq!((info.rotulo, info.icone), (t.rotulo(), t.icone()));
+        assert_eq!(Tela::de_nome(info.id), Some(t));
+    }
+    assert_eq!(INFO.telas.len(), Tela::TODAS.len());
+}
+
+#[test]
+fn integrado_tira_configuracoes() {
+    let integrado = Embutida { integrado: true };
+    assert!(telas(integrado).iter().all(|t| t.id != "configuracoes"));
+    assert_eq!(telas(integrado).len(), TELAS.len() - 1);
+    assert_eq!(telas(Embutida::default()), TELAS);
+    assert_eq!(
+        tela_embutida(Some("configuracoes"), integrado),
+        Tela::Postmortems
+    );
+    assert_eq!(
+        tela_embutida(Some("configuracoes"), Embutida::default()),
+        Tela::Configuracoes
+    );
+    assert_eq!(tela_embutida(Some("fontes"), integrado), Tela::Fontes);
+    assert_eq!(tela_embutida(Some("nada"), integrado), Tela::Postmortems);
+    assert_eq!(tela_embutida(None, integrado), Tela::Postmortems);
+}
