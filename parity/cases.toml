@@ -7,28 +7,28 @@ id = "uso.sem-sub"
 argv = []
 ts_cmd = ["{skill}/src/cli.ts", "thanatos"]
 env = { FAKE_GH_DIR = "../gh", FAKE_GH_LOG = "../gh.log", HADES_NOW = "2026-03-02T12:00:00Z" }
-compare = ["stdout", "exit"]
+compare = ["stdout", "stderr", "exit"]
 
 [[case]]
 id = "uso.help"
 argv = ["-h"]
 ts_cmd = ["{skill}/src/cli.ts", "thanatos"]
 env = { FAKE_GH_DIR = "../gh", FAKE_GH_LOG = "../gh.log", HADES_NOW = "2026-03-02T12:00:00Z" }
-compare = ["stdout", "exit"]
+compare = ["stdout", "stderr", "exit"]
 
 [[case]]
 id = "uso.help-longo"
 argv = ["--help"]
 ts_cmd = ["{skill}/src/cli.ts", "thanatos"]
 env = { FAKE_GH_DIR = "../gh", FAKE_GH_LOG = "../gh.log", HADES_NOW = "2026-03-02T12:00:00Z" }
-compare = ["stdout", "exit"]
+compare = ["stdout", "stderr", "exit"]
 
 [[case]]
 id = "uso.desconhecido"
 argv = ["x"]
 ts_cmd = ["{skill}/src/cli.ts", "thanatos"]
 env = { FAKE_GH_DIR = "../gh", FAKE_GH_LOG = "../gh.log", HADES_NOW = "2026-03-02T12:00:00Z" }
-compare = ["stdout", "exit"]
+compare = ["stdout", "stderr", "exit"]
 
 [[case]]
 id = "uso.opcao"
@@ -37,7 +37,7 @@ ts_cmd = ["{skill}/src/cli.ts", "thanatos"]
 fixture = "pm-existentes"
 cwd = "repo"
 env = { FAKE_GH_DIR = "../gh", FAKE_GH_LOG = "../gh.log", HADES_NOW = "2026-03-02T12:00:00Z" }
-compare = ["stdout", "exit"]
+compare = ["stdout", "stderr", "exit"]
 
 [[case]]
 id = "uso.base-sem-valor"
@@ -46,7 +46,7 @@ ts_cmd = ["{skill}/src/cli.ts", "thanatos"]
 fixture = "pm-existentes"
 cwd = "repo"
 env = { FAKE_GH_DIR = "../gh", FAKE_GH_LOG = "../gh.log", HADES_NOW = "2026-03-02T12:00:00Z" }
-compare = ["stdout", "exit"]
+compare = ["stdout", "stderr", "exit"]
 
 [[case]]
 id = "uso.list-force"
@@ -55,14 +55,14 @@ ts_cmd = ["{skill}/src/cli.ts", "thanatos"]
 fixture = "pm-existentes"
 cwd = "repo"
 env = { FAKE_GH_DIR = "../gh", FAKE_GH_LOG = "../gh.log", HADES_NOW = "2026-03-02T12:00:00Z" }
-compare = ["stdout", "exit"]
+compare = ["stdout", "stderr", "exit"]
 
 [[case]]
 id = "uso.fora-de-repo"
 argv = ["list"]
 ts_cmd = ["{skill}/src/cli.ts", "thanatos"]
 env = { FAKE_GH_DIR = "../gh", FAKE_GH_LOG = "../gh.log", HADES_NOW = "2026-03-02T12:00:00Z" }
-compare = ["stdout", "exit"]
+compare = ["stdout", "stderr", "exit"]
 
 [[case]]
 id = "new.pr"
@@ -72,7 +72,7 @@ fixture = "pm"
 cwd = "repo"
 env = { FAKE_GH_DIR = "../gh", FAKE_GH_LOG = "../gh.log", HADES_NOW = "2026-03-02T12:00:00Z" }
 keep = ["iso"]
-compare = ["stdout", "exit", "files:work/**"]
+compare = ["stdout", "stderr", "exit", "files:work/**"]
 
 [[case]]
 id = "new.pr.json"
@@ -82,7 +82,7 @@ fixture = "pm"
 cwd = "repo"
 env = { FAKE_GH_DIR = "../gh", FAKE_GH_LOG = "../gh.log", HADES_NOW = "2026-03-02T12:00:00Z" }
 keep = ["iso"]
-compare = ["stdout", "exit", "files:work/**"]
+compare = ["stdout", "stderr", "exit", "files:work/**"]
 
 [[case]]
 id = "new.existe"
@@ -91,7 +91,7 @@ ts_cmd = ["{skill}/src/cli.ts", "thanatos"]
 fixture = "pm-existentes"
 cwd = "repo"
 env = { FAKE_GH_DIR = "../gh", FAKE_GH_LOG = "../gh.log", HADES_NOW = "2026-03-02T12:00:00Z" }
-compare = ["stdout", "exit", "files:work/**"]
+compare = ["stdout", "stderr", "exit", "files:work/**"]
 
 [[case]]
 id = "new.force"
@@ -102,7 +102,7 @@ setup = "setup-pr12-editado.sh"
 cwd = "repo"
 env = { FAKE_GH_DIR = "../gh", FAKE_GH_LOG = "../gh.log", HADES_NOW = "2026-03-02T12:00:00Z" }
 keep = ["iso"]
-compare = ["stdout", "exit", "files:work/**"]
+compare = ["stdout", "stderr", "exit", "files:work/**"]
 
 [[case]]
 id = "new.md-orfao"
@@ -113,7 +113,7 @@ setup = "setup-md-orfao.sh"
 cwd = "repo"
 env = { FAKE_GH_DIR = "../gh", FAKE_GH_LOG = "../gh.log", HADES_NOW = "2026-03-02T12:00:00Z" }
 keep = ["iso"]
-compare = ["stdout", "exit", "files:work/**"]
+compare = ["stdout", "stderr", "exit", "files:work/**"]
 
 [[case]]
 id = "new.intervalo"
@@ -124,7 +124,7 @@ setup = "setup-commits.sh"
 cwd = "repo"
 env = { FAKE_GH_DIR = "../gh", FAKE_GH_LOG = "../gh.log", HADES_NOW = "2026-03-02T12:00:00Z" }
 keep = ["iso"]
-compare = ["stdout", "exit", "files:work/**"]
+compare = ["stdout", "stderr", "exit", "files:work/**"]
 
 [[case]]
 id = "new.intervalo-fuso-menos3"
@@ -135,7 +135,7 @@ setup = "setup-commits.sh"
 cwd = "repo"
 env = { FAKE_GH_DIR = "../gh", FAKE_GH_LOG = "../gh.log", HADES_NOW = "2026-03-02T12:00:00Z" }
 keep = ["iso"]
-compare = ["stdout", "exit", "files:work/**"]
+compare = ["stdout", "stderr", "exit", "files:work/**"]
 
 [[case]]
 id = "new.intervalo-fuso-zero"
@@ -146,7 +146,7 @@ setup = "setup-commits.sh"
 cwd = "repo"
 env = { FAKE_GH_DIR = "../gh", FAKE_GH_LOG = "../gh.log", HADES_NOW = "2026-03-02T12:00:00Z" }
 keep = ["iso"]
-compare = ["stdout", "exit", "files:work/**"]
+compare = ["stdout", "stderr", "exit", "files:work/**"]
 
 [[case]]
 id = "new.intervalo-erro-sem-fuso"
@@ -156,7 +156,7 @@ fixture = "pm"
 setup = "setup-commits.sh"
 cwd = "repo"
 env = { FAKE_GH_DIR = "../gh", FAKE_GH_LOG = "../gh.log", HADES_NOW = "2026-03-02T12:00:00Z" }
-compare = ["stdout", "exit"]
+compare = ["stdout", "stderr", "exit"]
 
 [[case]]
 id = "new.intervalo-erro-invertido"
@@ -166,7 +166,7 @@ fixture = "pm"
 setup = "setup-commits.sh"
 cwd = "repo"
 env = { FAKE_GH_DIR = "../gh", FAKE_GH_LOG = "../gh.log", HADES_NOW = "2026-03-02T12:00:00Z" }
-compare = ["stdout", "exit"]
+compare = ["stdout", "stderr", "exit"]
 
 [[case]]
 id = "new.intervalo-erro-vazio"
@@ -176,7 +176,7 @@ fixture = "pm"
 setup = "setup-commits.sh"
 cwd = "repo"
 env = { FAKE_GH_DIR = "../gh", FAKE_GH_LOG = "../gh.log", HADES_NOW = "2026-03-02T12:00:00Z" }
-compare = ["stdout", "exit"]
+compare = ["stdout", "stderr", "exit"]
 
 [[case]]
 id = "new.card"
@@ -186,7 +186,7 @@ fixture = "pm"
 cwd = "repo"
 env = { FAKE_GH_DIR = "../gh", FAKE_GH_LOG = "../gh.log", HADES_NOW = "2026-03-02T12:00:00Z" }
 keep = ["iso"]
-compare = ["stdout", "exit", "files:work/**"]
+compare = ["stdout", "stderr", "exit", "files:work/**"]
 
 [[case]]
 id = "new.card-sem-padrao"
@@ -196,7 +196,7 @@ fixture = "pm"
 setup = "setup-sem-padrao.sh"
 cwd = "repo"
 env = { FAKE_GH_DIR = "../gh", FAKE_GH_LOG = "../gh.log", HADES_NOW = "2026-03-02T12:00:00Z" }
-compare = ["stdout", "exit"]
+compare = ["stdout", "stderr", "exit"]
 
 [[case]]
 id = "new.gh-falha"
@@ -205,7 +205,7 @@ ts_cmd = ["{skill}/src/cli.ts", "thanatos"]
 fixture = "pm"
 cwd = "repo"
 env = { FAKE_GH_DIR = "../gh-vazio", FAKE_GH_LOG = "../gh.log", HADES_NOW = "2026-03-02T12:00:00Z" }
-compare = ["stdout", "exit", "files:work/**"]
+compare = ["stdout", "stderr", "exit", "files:work/**"]
 
 [[case]]
 id = "new.gh-nao-json"
@@ -215,7 +215,7 @@ fixture = "pm"
 setup = "setup-gh-nao-json.sh"
 cwd = "repo"
 env = { FAKE_GH_DIR = "../gh", FAKE_GH_LOG = "../gh.log", HADES_NOW = "2026-03-02T12:00:00Z" }
-compare = ["stdout", "exit", "files:work/**"]
+compare = ["stdout", "stderr", "exit", "files:work/**"]
 
 [[case]]
 id = "new.token-perfil"
@@ -225,7 +225,7 @@ fixture = "pm"
 setup = "setup-token-perfil.sh"
 cwd = "repo"
 env = { FAKE_GH_DIR = "../gh", FAKE_GH_LOG = "../gh.log", HADES_NOW = "2026-03-02T12:00:00Z" }
-compare = ["exit", "files:gh.log"]
+compare = ["stderr", "exit", "files:gh.log"]
 
 [[case]]
 id = "new.diario"
@@ -236,7 +236,7 @@ setup = "setup-diario.sh"
 cwd = "repo"
 env = { FAKE_GH_DIR = "../gh", FAKE_GH_LOG = "../gh.log", HADES_NOW = "2026-03-02T12:00:00Z" }
 keep = ["iso"]
-compare = ["stdout", "exit"]
+compare = ["stdout", "stderr", "exit"]
 
 [[case]]
 id = "new.fonte-ok"
@@ -246,7 +246,7 @@ fixture = "pm"
 cwd = "repo"
 env = { FAKE_GH_DIR = "../gh", FAKE_GH_LOG = "../gh.log", HADES_NOW = "2026-03-02T12:00:00Z" }
 keep = ["iso"]
-compare = ["stdout", "exit"]
+compare = ["stdout", "stderr", "exit"]
 
 [[case]]
 id = "new.fonte-ts"
@@ -257,7 +257,7 @@ setup = "setup-fonte-ts.sh"
 cwd = "repo"
 env = { FAKE_GH_DIR = "../gh", FAKE_GH_LOG = "../gh.log", HADES_NOW = "2026-03-02T12:00:00Z" }
 keep = ["iso"]
-compare = ["stdout", "exit"]
+compare = ["stdout", "stderr", "exit"]
 
 [[case]]
 id = "new.fonte-sem-token"
@@ -268,7 +268,7 @@ setup = "setup-fonte-sem-token.sh"
 cwd = "repo"
 env = { FAKE_GH_DIR = "../gh", FAKE_GH_LOG = "../gh.log", HADES_NOW = "2026-03-02T12:00:00Z" }
 keep = ["iso"]
-compare = ["stdout", "exit"]
+compare = ["stdout", "stderr", "exit"]
 
 [[case]]
 id = "new.fonte-falha"
@@ -279,7 +279,7 @@ setup = "setup-fonte-falha.sh"
 cwd = "repo"
 env = { FAKE_GH_DIR = "../gh", FAKE_GH_LOG = "../gh.log", HADES_NOW = "2026-03-02T12:00:00Z" }
 keep = ["iso"]
-compare = ["stdout", "exit"]
+compare = ["stdout", "stderr", "exit"]
 
 [[case]]
 id = "new.fonte-lixo"
@@ -290,7 +290,7 @@ setup = "setup-fonte-lixo.sh"
 cwd = "repo"
 env = { FAKE_GH_DIR = "../gh", FAKE_GH_LOG = "../gh.log", HADES_NOW = "2026-03-02T12:00:00Z" }
 keep = ["iso"]
-compare = ["stdout", "exit"]
+compare = ["stdout", "stderr", "exit"]
 
 [[case]]
 id = "new.fonte-fora-do-env"
@@ -301,7 +301,7 @@ setup = "setup-fonte-fora-do-env.sh"
 cwd = "repo"
 env = { FAKE_GH_DIR = "../gh", FAKE_GH_LOG = "../gh.log", HADES_NOW = "2026-03-02T12:00:00Z" }
 keep = ["iso"]
-compare = ["stdout", "exit"]
+compare = ["stdout", "stderr", "exit"]
 
 [[case]]
 id = "new.config-max-invalido"
@@ -310,7 +310,7 @@ ts_cmd = ["{skill}/src/cli.ts", "thanatos"]
 fixture = "pm"
 cwd = "repo"
 env = { FAKE_GH_DIR = "../gh", FAKE_GH_LOG = "../gh.log", HADES_NOW = "2026-03-02T12:00:00Z", HADES_THANATOS_MAX_PRS = "12x" }
-compare = ["exit", "files:gh.log"]
+compare = ["stderr", "exit", "files:gh.log"]
 
 [[case]]
 id = "new.config-max-zero"
@@ -319,7 +319,7 @@ ts_cmd = ["{skill}/src/cli.ts", "thanatos"]
 fixture = "pm"
 cwd = "repo"
 env = { FAKE_GH_DIR = "../gh", FAKE_GH_LOG = "../gh.log", HADES_NOW = "2026-03-02T12:00:00Z", HADES_THANATOS_MAX_PRS = "0" }
-compare = ["exit", "files:gh.log"]
+compare = ["stderr", "exit", "files:gh.log"]
 
 [[case]]
 id = "list.vazio"
@@ -328,7 +328,7 @@ ts_cmd = ["{skill}/src/cli.ts", "thanatos"]
 fixture = "pm"
 cwd = "repo"
 env = { FAKE_GH_DIR = "../gh", FAKE_GH_LOG = "../gh.log", HADES_NOW = "2026-03-02T12:00:00Z" }
-compare = ["stdout", "exit"]
+compare = ["stdout", "stderr", "exit"]
 
 [[case]]
 id = "list.json.vazio"
@@ -337,7 +337,7 @@ ts_cmd = ["{skill}/src/cli.ts", "thanatos"]
 fixture = "pm"
 cwd = "repo"
 env = { FAKE_GH_DIR = "../gh", FAKE_GH_LOG = "../gh.log", HADES_NOW = "2026-03-02T12:00:00Z" }
-compare = ["stdout", "exit"]
+compare = ["stdout", "stderr", "exit"]
 
 [[case]]
 id = "list"
@@ -346,7 +346,7 @@ ts_cmd = ["{skill}/src/cli.ts", "thanatos"]
 fixture = "pm-existentes"
 cwd = "repo"
 env = { FAKE_GH_DIR = "../gh", FAKE_GH_LOG = "../gh.log", HADES_NOW = "2026-03-02T12:00:00Z" }
-compare = ["stdout", "exit"]
+compare = ["stdout", "stderr", "exit"]
 
 [[case]]
 id = "list.json"
@@ -355,7 +355,7 @@ ts_cmd = ["{skill}/src/cli.ts", "thanatos"]
 fixture = "pm-existentes"
 cwd = "repo"
 env = { FAKE_GH_DIR = "../gh", FAKE_GH_LOG = "../gh.log", HADES_NOW = "2026-03-02T12:00:00Z" }
-compare = ["stdout", "exit"]
+compare = ["stdout", "stderr", "exit"]
 
 [[case]]
 id = "show"
@@ -364,7 +364,7 @@ ts_cmd = ["{skill}/src/cli.ts", "thanatos"]
 fixture = "pm-existentes"
 cwd = "repo"
 env = { FAKE_GH_DIR = "../gh", FAKE_GH_LOG = "../gh.log", HADES_NOW = "2026-03-02T12:00:00Z" }
-compare = ["stdout", "exit"]
+compare = ["stdout", "stderr", "exit"]
 
 [[case]]
 id = "show.json"
@@ -373,7 +373,7 @@ ts_cmd = ["{skill}/src/cli.ts", "thanatos"]
 fixture = "pm-existentes"
 cwd = "repo"
 env = { FAKE_GH_DIR = "../gh", FAKE_GH_LOG = "../gh.log", HADES_NOW = "2026-03-02T12:00:00Z" }
-compare = ["stdout", "exit"]
+compare = ["stdout", "stderr", "exit"]
 
 [[case]]
 id = "show.v2"
@@ -382,7 +382,7 @@ ts_cmd = ["{skill}/src/cli.ts", "thanatos"]
 fixture = "pm-existentes"
 cwd = "repo"
 env = { FAKE_GH_DIR = "../gh", FAKE_GH_LOG = "../gh.log", HADES_NOW = "2026-03-02T12:00:00Z" }
-compare = ["stdout", "exit"]
+compare = ["stdout", "stderr", "exit"]
 
 [[case]]
 id = "show.erro-inexistente"
@@ -391,7 +391,7 @@ ts_cmd = ["{skill}/src/cli.ts", "thanatos"]
 fixture = "pm-existentes"
 cwd = "repo"
 env = { FAKE_GH_DIR = "../gh", FAKE_GH_LOG = "../gh.log", HADES_NOW = "2026-03-02T12:00:00Z" }
-compare = ["stdout", "exit"]
+compare = ["stdout", "stderr", "exit"]
 
 [[case]]
 id = "show.erro-traversal"
@@ -400,7 +400,7 @@ ts_cmd = ["{skill}/src/cli.ts", "thanatos"]
 fixture = "pm-existentes"
 cwd = "repo"
 env = { FAKE_GH_DIR = "../gh", FAKE_GH_LOG = "../gh.log", HADES_NOW = "2026-03-02T12:00:00Z" }
-compare = ["stdout", "exit"]
+compare = ["stdout", "stderr", "exit"]
 
 [[case]]
 id = "show.erro-ilegivel"
@@ -409,7 +409,7 @@ ts_cmd = ["{skill}/src/cli.ts", "thanatos"]
 fixture = "pm-existentes"
 cwd = "repo"
 env = { FAKE_GH_DIR = "../gh", FAKE_GH_LOG = "../gh.log", HADES_NOW = "2026-03-02T12:00:00Z" }
-compare = ["stdout", "exit"]
+compare = ["stdout", "stderr", "exit"]
 
 [[case]]
 id = "search"
@@ -418,7 +418,7 @@ ts_cmd = ["{skill}/src/cli.ts", "thanatos"]
 fixture = "pm-existentes"
 cwd = "repo"
 env = { FAKE_GH_DIR = "../gh", FAKE_GH_LOG = "../gh.log", HADES_NOW = "2026-03-02T12:00:00Z" }
-compare = ["stdout", "exit"]
+compare = ["stdout", "stderr", "exit"]
 
 [[case]]
 id = "search.json"
@@ -427,7 +427,7 @@ ts_cmd = ["{skill}/src/cli.ts", "thanatos"]
 fixture = "pm-existentes"
 cwd = "repo"
 env = { FAKE_GH_DIR = "../gh", FAKE_GH_LOG = "../gh.log", HADES_NOW = "2026-03-02T12:00:00Z" }
-compare = ["stdout", "exit"]
+compare = ["stdout", "stderr", "exit"]
 
 [[case]]
 id = "search.regex"
@@ -436,7 +436,7 @@ ts_cmd = ["{skill}/src/cli.ts", "thanatos"]
 fixture = "pm-existentes"
 cwd = "repo"
 env = { FAKE_GH_DIR = "../gh", FAKE_GH_LOG = "../gh.log", HADES_NOW = "2026-03-02T12:00:00Z" }
-compare = ["stdout", "exit"]
+compare = ["stdout", "stderr", "exit"]
 
 [[case]]
 id = "cited.arquivos"
@@ -445,7 +445,7 @@ ts_cmd = ["{skill}/src/cli.ts", "thanatos"]
 fixture = "pm-existentes"
 cwd = "repo"
 env = { FAKE_GH_DIR = "../gh", FAKE_GH_LOG = "../gh.log", HADES_NOW = "2026-03-02T12:00:00Z" }
-compare = ["stdout", "exit"]
+compare = ["stdout", "stderr", "exit"]
 
 [[case]]
 id = "cited.arquivos.json"
@@ -454,7 +454,7 @@ ts_cmd = ["{skill}/src/cli.ts", "thanatos"]
 fixture = "pm-existentes"
 cwd = "repo"
 env = { FAKE_GH_DIR = "../gh", FAKE_GH_LOG = "../gh.log", HADES_NOW = "2026-03-02T12:00:00Z" }
-compare = ["stdout", "exit"]
+compare = ["stdout", "stderr", "exit"]
 
 [[case]]
 id = "cited.base"
@@ -464,7 +464,7 @@ fixture = "pm-existentes"
 setup = "setup-commits.sh"
 cwd = "repo"
 env = { FAKE_GH_DIR = "../gh", FAKE_GH_LOG = "../gh.log", HADES_NOW = "2026-03-02T12:00:00Z" }
-compare = ["stdout", "exit"]
+compare = ["stdout", "stderr", "exit"]
 
 [[case]]
 id = "cited.base-falha"
@@ -474,7 +474,7 @@ fixture = "pm-existentes"
 setup = "setup-commits.sh"
 cwd = "repo"
 env = { FAKE_GH_DIR = "../gh", FAKE_GH_LOG = "../gh.log", HADES_NOW = "2026-03-02T12:00:00Z" }
-compare = ["stdout", "exit"]
+compare = ["stdout", "stderr", "exit"]
 
 [[case]]
 id = "cited.pr"
@@ -483,7 +483,7 @@ ts_cmd = ["{skill}/src/cli.ts", "thanatos"]
 fixture = "pm-existentes"
 cwd = "repo"
 env = { FAKE_GH_DIR = "../gh", FAKE_GH_LOG = "../gh.log", HADES_NOW = "2026-03-02T12:00:00Z" }
-compare = ["stdout", "exit"]
+compare = ["stdout", "stderr", "exit"]
 
 [[case]]
 id = "cited.pr-invalido"
@@ -492,4 +492,4 @@ ts_cmd = ["{skill}/src/cli.ts", "thanatos"]
 fixture = "pm-existentes"
 cwd = "repo"
 env = { FAKE_GH_DIR = "../gh", FAKE_GH_LOG = "../gh.log", HADES_NOW = "2026-03-02T12:00:00Z" }
-compare = ["stdout", "exit"]
+compare = ["stdout", "stderr", "exit"]

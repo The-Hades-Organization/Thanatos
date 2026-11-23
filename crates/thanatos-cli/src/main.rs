@@ -6,6 +6,7 @@ use std::time::Duration;
 
 use hades_core::Env;
 use hades_core::clock::now_ms;
+use hades_core::errors::render_error;
 use hades_core::fsx::read_text;
 use hades_core::jsonfmt::json_compact;
 use hades_core::output::{HadesError, exit, out, warn};
@@ -64,6 +65,9 @@ struct Options {
     base: Option<String>,
     pr: Option<String>,
 }
+
+/// `renderCli` do `cli.ts:146`: o TS imprime com o prefixo `hades`, e o binário o substitui no corte.
+const ERROR_PREFIX: &str = "hades";
 
 fn fail(message: impl Into<String>) -> HadesError {
     HadesError::with_code(message, exit::FAIL)
@@ -422,7 +426,7 @@ fn main() -> ExitCode {
     match run(&args, &|| real_context(&env, &cwd)) {
         Ok(code) => ExitCode::from(code as u8),
         Err(error) => {
-            warn(&error.message);
+            warn(&render_error(&error, ERROR_PREFIX));
             ExitCode::from(error.code as u8)
         }
     }
