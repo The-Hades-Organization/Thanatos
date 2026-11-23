@@ -13,7 +13,7 @@ use hades_core::Env;
 use hades_ui::components::{
     Align, Button, Card, Confirm, CopyButton, DataTable, EmptyState, MarkdownView, PageHeader,
     Rail, RailBrand, RailGroup, RailItem, Segmented, Skeleton, Spinner, StatusBadge, StatusBar,
-    TermBlock, TextField, Timeline, TopBar,
+    RailStat, Page, TermBlock, TextField, Timeline,
 };
 use hades_ui::icons::IconName;
 use hades_ui::tokens::space;
@@ -365,9 +365,13 @@ impl ThanatosView {
             RailGroup::new("Geração", [item(Tela::Novo)]),
         ])
         .brand(
-            RailBrand::new("Hades")
+            RailBrand::new("Thanatos")
                 .icon(IconName::Skull)
-                .subtitle("thanatos"),
+                .subtitle("post-mortems"),
+        )
+        .footer(
+            RailStat::new("Post-mortems", format!("{} gravados", self.lista.len()))
+                .tone(Tone::Neutral),
         )
         .selected(self.tela.rotulo())
         .on_select(move |rotulo, _, cx| {
@@ -380,13 +384,6 @@ impl ThanatosView {
         })
     }
 
-    fn titulo(&self) -> String {
-        match (&self.selecionado, self.tela) {
-            (Some(id), Tela::Fontes) => format!("Thanatos · {id}"),
-            _ => "Thanatos".to_owned(),
-        }
-    }
-
     fn tabela_da_lista(&self, cx: &mut Context<Self>) -> DataTable {
         let entidade = cx.entity();
         let colunas = COLUNAS_LISTA.iter().map(|n| {
@@ -397,7 +394,9 @@ impl ThanatosView {
             };
             (SharedString::from((*n).to_owned()), alinhamento)
         });
-        let mut tabela = DataTable::new(colunas.collect::<Vec<_>>());
+        let mut tabela = DataTable::new(colunas.collect::<Vec<_>>())
+            .fill("lista-postmortems")
+            .empty("Nenhum post-mortem");
         for e in &self.lista {
             tabela = tabela.row(vm::celulas_lista(e).into_iter().map(SharedString::from));
         }
@@ -429,18 +428,20 @@ impl ThanatosView {
         };
         let pm = &doc.postmortem;
         let caminho = doc.caminho_md.display().to_string();
-        let cabecalho = PageHeader::new(vm::titulo_do_documento(pm))
-            .action(StatusBadge::new(
-                format!("até a correção: {}", vm::tempo_ate_a_correcao(pm)),
-                Tone::Neutral,
-            ))
-            .action(CopyButton::new("copiar-caminho", caminho).label("Copiar caminho"));
-        let mut coluna = div().flex().flex_col().gap(px(space::LG)).child(cabecalho);
-        coluna = match &doc.markdown {
-            Some(md) => coluna.child(MarkdownView::new(vm::sem_linha_do_tempo(md))),
-            None => coluna
-                .child(EmptyState::new("Sem .md").hint("O .json existe, mas o .md foi removido.")),
+        let mut coluna = div().flex().flex_col().min_w_0().gap(px(space::LG));
+        let corpo = match &doc.markdown {
+            Some(md) => MarkdownView::new(vm::sem_linha_do_tempo(md)).into_any_element(),
+            None => EmptyState::new("Sem .md")
+                .hint("O .json existe, mas o .md foi removido.")
+                .into_any_element(),
         };
+        coluna = coluna.child(
+            Card::new()
+                .title(vm::titulo_do_documento(pm))
+                .meta(format!("até a correção: {}", vm::tempo_ate_a_correcao(pm)))
+                .action(CopyButton::new("copiar-caminho", caminho).label("Copiar caminho"))
+                .child(corpo),
+        );
         let mut linha = Timeline::new();
         for l in vm::linhas_do_tempo(&pm.timeline) {
             linha = linha.sourced(l.hora, l.texto, l.fonte, l.tom);
@@ -483,9 +484,13 @@ impl ThanatosView {
         (refazer, editar)
     }
 
-    fn tela_postmortems(&self, cx: &mut Context<Self>) -> gpui::AnyElement {
+    fn tela_postmortems(&self, cx: &mut Context<Self>) -> Page {
         let (refazer, editar) = self.botoes_do_documento(cx);
         let cabecalho = PageHeader::new("Post-mortems")
+            .subtitle("Documentos gravados a partir de PRs, intervalos e cards")
+            .description(
+                "Escolha um post-mortem na lista para ler o texto, a linha do tempo e o que cada fonte trouxe.",
+            )
             .action(editar)
             .action(refazer)
             .action(
@@ -496,28 +501,26 @@ impl ThanatosView {
                         move |_, _, cx| e.update(cx, |v, cx| v.recarregar(cx))
                     }),
             );
-        let coluna = div().flex().flex_col().gap(px(space::LG)).child(cabecalho);
+        let pagina = Page::new("pagina-postmortems").header(cabecalho);
         if self.lista.is_empty() {
-            let (titulo, dica) = if self.t_lista.carregando() {
-                ("Carregando…", "Lendo a pasta de post-mortems.")
-            } else {
-                (
-                    "Nenhum post-mortem",
-                    "Rode `thanatos new <pr|intervalo|card>` para gerar o primeiro.",
-                )
-            };
             if self.t_lista.carregando() {
-                return coluna.child(self.esqueleto("lista")).into_any_element();
+                return pagina.child(self.esqueleto("lista"));
             }
-            return coluna
-                .child(EmptyState::new(titulo).hint(dica))
-                .into_any_element();
+            return pagina.child(
+                EmptyState::new("Nenhum post-mortem")
+                    .hint("Rode `thanatos new <pr|intervalo|card>` para gerar o primeiro.")
+                    .fill(),
+            );
         }
         let corpo = div()
             .flex()
+            .flex_1()
+            .min_h_0()
             .gap(px(space::LG))
             .child(
                 div()
+                    .flex()
+                    .flex_col()
                     .flex_none()
                     .w(relative(FRACAO_LISTA))
                     .child(self.tabela_da_lista(cx)),
@@ -530,10 +533,10 @@ impl ThanatosView {
                     .overflow_y_scroll()
                     .child(self.painel_do_documento()),
             );
-        coluna.child(corpo).into_any_element()
+        pagina.fill_child(corpo)
     }
 
-    fn tela_novo(&self, cx: &mut Context<Self>) -> gpui::AnyElement {
+    fn tela_novo(&self, cx: &mut Context<Self>) -> Page {
         let e = cx.entity();
         let modos = Segmented::new("modo", Modo::TODOS.map(Modo::rotulo))
             .selected(self.modo.indice())
@@ -559,11 +562,14 @@ impl ThanatosView {
         if let Some(id) = self.validacao.id() {
             formulario = formulario.child(format!("Será gravado como {id}."));
         }
-        let mut coluna = div()
-            .flex()
-            .flex_col()
-            .gap(px(space::LG))
-            .child(PageHeader::new("Novo"))
+        let mut coluna = Page::new("pagina-novo")
+            .header(
+                PageHeader::new("Novo")
+                    .subtitle("Gera um post-mortem a partir de um PR, intervalo ou card")
+                    .description(
+                        "O texto sai de git, gh, do diário e da fonte externa; nada é gravado até você pedir.",
+                    ),
+            )
             .child(formulario);
         if self.t_criar.carregando() {
             coluna = coluna.child(
@@ -580,8 +586,9 @@ impl ThanatosView {
         }
         match &self.resultado {
             Some(Ok(c)) => {
-                let mut bloco = TermBlock::new();
-                for l in novo::linhas_do_resultado(c) {
+                let linhas = novo::linhas_do_resultado(c);
+                let mut bloco = TermBlock::new().copy("copiar-resultado", linhas.join("\n"));
+                for l in linhas {
                     bloco = bloco.line(l);
                 }
                 coluna = coluna.child(Card::new().title("Gravado").child(bloco));
@@ -591,21 +598,23 @@ impl ThanatosView {
             }
             None => {}
         }
-        coluna.into_any_element()
+        coluna
     }
 
-    fn tela_fontes(&self) -> gpui::AnyElement {
-        let cabecalho = PageHeader::new("Fontes");
-        let coluna = div().flex().flex_col().gap(px(space::LG)).child(cabecalho);
+    fn tela_fontes(&self) -> Page {
+        let cabecalho = PageHeader::new("Fontes")
+            .subtitle("O que cada fonte trouxe para o post-mortem aberto")
+            .description("Métricas externas e lacunas ficam aqui; o texto do documento está em Post-mortems.");
+        let coluna = Page::new("pagina-fontes").header(cabecalho);
         let Some(doc) = &self.documento else {
-            return coluna
-                .child(EmptyState::new("Nenhum post-mortem aberto").hint(
-                    "Escolha um post-mortem em Post-mortems para ver o que cada fonte trouxe.",
-                ))
-                .into_any_element();
+            return coluna.child(
+                EmptyState::new("Nenhum post-mortem aberto")
+                    .hint("Escolha um post-mortem em Post-mortems para ver o que cada fonte trouxe.")
+                    .fill(),
+            );
         };
         let pm = &doc.postmortem;
-        let mut cartoes = div().flex().gap(px(space::MD));
+        let mut cartoes = div().flex().gap(px(space::MD)).min_w_0();
         for c in vm::cartoes_das_fontes(pm) {
             let mut cartao = Card::new()
                 .title(c.nome)
@@ -619,7 +628,7 @@ impl ThanatosView {
         let mut coluna = coluna.child(cartoes);
         let metricas = vm::linhas_das_metricas(pm);
         if !metricas.is_empty() {
-            let mut bloco = TermBlock::new();
+            let mut bloco = TermBlock::new().copy("copiar-metricas", metricas.join("\n"));
             for m in metricas {
                 bloco = bloco.line(m);
             }
@@ -632,7 +641,7 @@ impl ThanatosView {
         for g in &pm.gaps {
             lacunas = lacunas.child(g.clone());
         }
-        coluna.child(lacunas).into_any_element()
+        coluna.child(lacunas)
     }
 }
 
@@ -642,9 +651,9 @@ impl Render for ThanatosView {
         let (esquerda, direita) = self.rodape();
         let rail = self.rail(cx);
         let corpo = match self.tela {
-            Tela::Postmortems => self.tela_postmortems(cx),
-            Tela::Novo => self.tela_novo(cx),
-            Tela::Fontes => self.tela_fontes(),
+            Tela::Postmortems => self.tela_postmortems(cx).into_any_element(),
+            Tela::Novo => self.tela_novo(cx).into_any_element(),
+            Tela::Fontes => self.tela_fontes().into_any_element(),
         };
         let confirmar = self.confirmacao.pendente().map(|id| {
             let (sim, nao) = (cx.entity(), cx.entity());
@@ -687,14 +696,13 @@ impl Render for ThanatosView {
             .flex_col()
             .bg(p.bg)
             .text_color(p.fg)
-            .child(TopBar::new(self.titulo()).trailing("gpui"))
             .child(
                 div()
                     .flex_1()
                     .flex()
                     .min_h_0()
                     .child(rail)
-                    .child(div().flex_1().p(px(space::LG)).child(corpo)),
+                    .child(corpo),
             )
             .child(StatusBar::new(esquerda, direita))
             .children(confirmar)

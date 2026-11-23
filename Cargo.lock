@@ -2633,8 +2633,8 @@ dependencies = [
 
 [[package]]
 name = "hades-ui"
-version = "0.2.1"
-source = "git+https://github.com/The-Hades-Organization/Hades-UI?tag=v0.2.1#315081639342ffc6ce18252aaa12a58af6a18e5e"
+version = "0.2.2"
+source = "git+https://github.com/The-Hades-Organization/Hades-UI?tag=v0.2.2#cad0fab0b2a33f1df4e0972bef3a63ca3760b13b"
 dependencies = [
  "gpui-component",
  "gpui-pre",
