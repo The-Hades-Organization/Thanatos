@@ -2633,8 +2633,8 @@ dependencies = [
 
 [[package]]
 name = "hades-ui"
-version = "0.2.4"
-source = "git+https://github.com/The-Hades-Organization/Hades-UI?tag=v0.2.4#426367bc5d433035c84779ba5700ba4dfef898b6"
+version = "0.2.5"
+source = "git+https://github.com/The-Hades-Organization/Hades-UI?tag=v0.2.5#6e450ed0d1c6812c150a2f0909e5b350dab20207"
 dependencies = [
  "gpui-component",
  "gpui-pre",
@@ -6241,6 +6241,7 @@ dependencies = [
  "hades-core",
  "hades-ui",
  "serde_json",
+ "tempfile",
  "thanatos-core",
 ]
 

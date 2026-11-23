@@ -3,8 +3,11 @@
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
+use crate::vm::config::{Chave, Mudancas, PREFIXO, Tipo};
 use hades_core::Env;
+use hades_core::config::{self, ConfigStore};
 use hades_core::output::HadesError;
+use hades_core::paths;
 use hades_core::work::{WorkOptions, load_work_env};
 use serde_json::Value;
 use thanatos_core::build::build_postmortem;
@@ -220,3 +223,68 @@ pub fn abrir_no_editor(caminho: &Path) -> Result<(), String> {
             }
         })
 }
+
+/// Ponto único por onde a página Configurações lê e grava. O painel do Hades troca a implementação (F6) sem mexer
+/// na tela; sozinho, o app usa [`ConfigDoCore`].
+pub trait FonteConfig: Send + Sync {
+    fn ler(&self) -> Result<Vec<Chave>, String>;
+    fn gravar(&self, mudancas: &Mudancas) -> Result<(), String>;
+}
+
+/// `catalog`/`effective`/`save` do `hades-core::config`, no `$D` que o CLI usa (`find_state_dir`) e no kit da skill.
+pub struct ConfigDoCore {
+    env: Env,
+    cwd: PathBuf,
+}
+
+impl ConfigDoCore {
+    pub fn new(env: Env, cwd: PathBuf) -> Self {
+        Self { env, cwd }
+    }
+
+    fn store(&self) -> Result<ConfigStore, String> {
+        let dir = paths::find_state_dir(&self.env, &self.cwd).ok_or_else(|| {
+            "sem instalação do Hades: não há onde gravar a configuração".to_owned()
+        })?;
+        Ok(ConfigStore {
+            dir,
+            kit: paths::skill_root(&self.env).join("kit"),
+        })
+    }
+}
+
+impl FonteConfig for ConfigDoCore {
+    fn ler(&self) -> Result<Vec<Chave>, String> {
+        let store = self.store()?;
+        let efetivas = config::effective(&store).map_err(|e| e.0)?;
+        Ok(efetivas
+            .into_iter()
+            .filter(|e| e.item.key.starts_with(PREFIXO))
+            .map(|e| Chave {
+                ambiente: self.env.get_raw(&e.item.key).map(str::to_owned),
+                tipo: Tipo::de_catalogo(&e.item.kind),
+                chave: e.item.key,
+                rotulo: e.item.label,
+                descricao: e.item.desc,
+                padrao: e.item.default,
+                salvo: e.value,
+            })
+            .collect())
+    }
+
+    fn gravar(&self, mudancas: &Mudancas) -> Result<(), String> {
+        let store = self.store()?;
+        let atualizar: Vec<(&str, &str)> = mudancas
+            .atualizar
+            .iter()
+            .map(|(k, v)| (k.as_str(), v.as_str()))
+            .collect();
+        let remover: Vec<&str> = mudancas.remover.iter().map(String::as_str).collect();
+        config::save(&store, &atualizar, &remover)
+            .map(|_| ())
+            .map_err(|e| e.0)
+    }
+}
+
+#[cfg(test)]
+mod tests;

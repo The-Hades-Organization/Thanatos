@@ -1,6 +1,7 @@
 //! `ThanatosView`: casca (topo, rail, status) e as telas Post-mortems e Fontes.
 
 use std::path::PathBuf;
+use std::sync::Arc;
 use std::time::Duration;
 
 use gpui::{
@@ -12,14 +13,16 @@ use gpui_component::input::{InputEvent, InputState};
 use hades_core::Env;
 use hades_ui::components::{
     Align, Button, Card, Confirm, CopyButton, DataTable, EmptyState, MarkdownView, MetaList, Meter,
-    Page, PageHeader, Rail, RailBrand, RailGroup, RailItem, RailStat, Segmented, Skeleton, Spinner,
-    StatusBadge, StatusBar, TermBlock, TextField, Timeline,
+    Page, PageHeader, Rail, RailBrand, RailGroup, RailItem, RailStat, Segmented, SettingOrigin,
+    SettingRow, SettingsBar, SettingsGroup, Skeleton, Spinner, StatusBadge, StatusBar, TermBlock,
+    TextField, Timeline,
 };
 use hades_ui::icons::IconName;
 use hades_ui::tokens::space;
 use hades_ui::{Tone, palette};
 
-use crate::service::{self, Contexto, Criado, Documento};
+use crate::service::{self, ConfigDoCore, Contexto, Criado, Documento, FonteConfig};
+use crate::vm::config::{Origem, Pagina, Tipo};
 use crate::vm::novo::{self, AVISO_REFAZER, Confirmacao, Modo, Validacao};
 use crate::vm::{self, COLUNAS_LISTA, Tarefa, Tela};
 use thanatos_core::model::IndexEntry;
@@ -50,6 +53,13 @@ pub struct ThanatosView {
     t_criar: Tarefa,
     t_editor: Tarefa,
     recolhida: bool,
+    fonte_config: Arc<dyn FonteConfig>,
+    config: Pagina,
+    config_erro: Option<String>,
+    config_salvo: bool,
+    campos_config: Vec<Option<Entity<InputState>>>,
+    t_config: Tarefa,
+    t_gravar: Tarefa,
 }
 
 impl ThanatosView {
@@ -90,6 +100,13 @@ impl ThanatosView {
             t_criar: Tarefa::default(),
             t_editor: Tarefa::default(),
             recolhida: false,
+            fonte_config: Arc::new(ConfigDoCore::new(env.clone(), cwd.clone())),
+            config: Pagina::default(),
+            config_erro: None,
+            config_salvo: false,
+            campos_config: Vec::new(),
+            t_config: Tarefa::default(),
+            t_gravar: Tarefa::default(),
             env,
             cwd,
         };
@@ -323,6 +340,218 @@ impl ThanatosView {
     fn mudar_tela(&mut self, tela: Tela, cx: &mut Context<Self>) {
         self.tela = tela;
         self.recarregar(cx);
+        if tela == Tela::Configuracoes && self.config.pendentes() == 0 {
+            self.carregar_config(cx);
+        }
+    }
+
+    /// Troca a origem da página Configurações (painel do Hades na F6); a leitura seguinte já vem dela.
+    pub fn usar_fonte_de_config(&mut self, fonte: Arc<dyn FonteConfig>, cx: &mut Context<Self>) {
+        self.fonte_config = fonte;
+        self.config = Pagina::default();
+        self.campos_config.clear();
+        self.carregar_config(cx);
+    }
+
+    /// Lê as chaves `HADES_THANATOS_*` pela fonte, no executor de fundo.
+    fn carregar_config(&mut self, cx: &mut Context<Self>) {
+        let Some(g) = self.t_config.iniciar() else {
+            return;
+        };
+        let fonte = self.fonte_config.clone();
+        cx.spawn(async move |this, cx| {
+            let r = cx
+                .background_executor()
+                .spawn(async move { fonte.ler() })
+                .await;
+            let _ = this.update(cx, |v, cx| {
+                if !v.t_config.concluir(g) {
+                    return;
+                }
+                match r {
+                    Ok(chaves) => {
+                        v.config = Pagina::new(chaves);
+                        v.campos_config.clear();
+                        v.config_erro = None;
+                    }
+                    Err(e) => v.config_erro = Some(e),
+                }
+                cx.notify();
+            });
+        })
+        .detach();
+    }
+
+    /// Grava a diferença pela fonte e relê tudo; valor inválido não grava nada.
+    fn salvar_config(&mut self, cx: &mut Context<Self>) {
+        let Some(mudancas) = self.config.mudancas() else {
+            return;
+        };
+        if mudancas.atualizar.is_empty() && mudancas.remover.is_empty() {
+            return;
+        }
+        let Some(g) = self.t_gravar.iniciar() else {
+            return;
+        };
+        let fonte = self.fonte_config.clone();
+        cx.notify();
+        cx.spawn(async move |this, cx| {
+            let r = cx
+                .background_executor()
+                .spawn(async move {
+                    fonte.gravar(&mudancas)?;
+                    fonte.ler()
+                })
+                .await;
+            let _ = this.update(cx, |v, cx| {
+                if !v.t_gravar.concluir(g) {
+                    return;
+                }
+                match r {
+                    Ok(chaves) => {
+                        v.config = Pagina::new(chaves);
+                        v.campos_config.clear();
+                        v.config_erro = None;
+                        v.config_salvo = true;
+                    }
+                    Err(e) => v.config_erro = Some(e),
+                }
+                cx.notify();
+            });
+        })
+        .detach();
+    }
+
+    fn escrever_campo(&self, i: usize, valor: &str, window: &mut Window, cx: &mut Context<Self>) {
+        if let Some(Some(campo)) = self.campos_config.get(i) {
+            campo.update(cx, |c, cx| c.set_value(valor, window, cx));
+        }
+    }
+
+    fn restaurar_config(&mut self, i: usize, window: &mut Window, cx: &mut Context<Self>) {
+        self.config.restaurar(i);
+        self.config_salvo = false;
+        let valor = self.config.linhas()[i].rascunho.clone();
+        self.escrever_campo(i, &valor, window, cx);
+        cx.notify();
+    }
+
+    fn descartar_config(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.config.descartar();
+        self.config_salvo = false;
+        for i in 0..self.config.linhas().len() {
+            let valor = self.config.linhas()[i].rascunho.clone();
+            self.escrever_campo(i, &valor, window, cx);
+        }
+        cx.notify();
+    }
+
+    /// Um campo de texto por chave não booleana; criados na renderização, que é onde há `Window`.
+    fn garantir_campos_config(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let n = self.config.linhas().len();
+        if self.campos_config.len() == n {
+            return;
+        }
+        self.campos_config.clear();
+        for i in 0..n {
+            let linha = &self.config.linhas()[i];
+            if linha.chave.tipo == Tipo::Bool {
+                self.campos_config.push(None);
+                continue;
+            }
+            let inicial = linha.rascunho.clone();
+            let campo = cx.new(|cx| InputState::new(window, cx));
+            campo.update(cx, |c, cx| c.set_value(inicial, window, cx));
+            cx.subscribe_in(&campo, window, move |v, campo, e: &InputEvent, _, cx| {
+                if matches!(e, InputEvent::Change) {
+                    let texto = campo.read(cx).value();
+                    v.config.definir(i, &texto);
+                    v.config_salvo = false;
+                    cx.notify();
+                }
+            })
+            .detach();
+            self.campos_config.push(Some(campo));
+        }
+    }
+
+    fn linha_de_config(&self, i: usize, cx: &mut Context<Self>) -> Option<SettingRow> {
+        let l = &self.config.linhas()[i];
+        let id = format!("cfg-{}", l.chave.chave);
+        let rotulo = l.chave.rotulo.clone();
+        let mut linha = match (l.chave.tipo, self.campos_config.get(i)) {
+            (Tipo::Bool, _) => {
+                let ligado = l.chave.tipo.normalizar(&l.rascunho).is_ok_and(|v| v == "1");
+                let e = cx.entity();
+                SettingRow::switch(id, rotulo, ligado).on_change(move |ligou, _, cx| {
+                    e.update(cx, |v, cx| {
+                        v.config.definir(i, if ligou { "1" } else { "0" });
+                        v.config_salvo = false;
+                        cx.notify();
+                    });
+                })
+            }
+            (Tipo::Int { min, max }, Some(Some(campo))) => {
+                SettingRow::number(id, rotulo, campo, min, max)
+            }
+            (_, Some(Some(campo))) => SettingRow::text(id, rotulo, campo),
+            _ => return None,
+        };
+        let origem = match l.chave.origem() {
+            Origem::Padrao => SettingOrigin::Default,
+            Origem::Arquivo => SettingOrigin::File,
+            Origem::Ambiente => SettingOrigin::Env,
+        };
+        let e = cx.entity();
+        linha = linha
+            .key(l.chave.chave.clone())
+            .description(l.chave.descricao.clone())
+            .default_value(l.chave.padrao.clone())
+            .origin(origem)
+            .modified(self.config.modificado(i))
+            .error_opt(self.config.erro(i))
+            .on_reset(move |_, window, cx| {
+                e.update(cx, |v, cx| v.restaurar_config(i, window, cx));
+            });
+        Some(linha)
+    }
+
+    fn tela_configuracoes(&self, cx: &mut Context<Self>) -> Page {
+        let cabecalho = PageHeader::new("Configurações")
+            .subtitle("Ajustes do Thanatos: os mesmos que o CLI lê")
+            .description(
+                "Valor do ambiente vence o arquivo e fica só leitura aqui; o resto grava no config.env do Hades.",
+            );
+        let mut pagina = Page::new("pagina-configuracoes").header(cabecalho);
+        if let Some(e) = &self.config_erro {
+            pagina = pagina.child(
+                Card::new()
+                    .title("Não foi possível ler ou gravar")
+                    .child(e.clone()),
+            );
+        }
+        if self.config.linhas().is_empty() {
+            if self.t_config.carregando() {
+                return pagina.child(self.esqueleto("config"));
+            }
+            return pagina;
+        }
+        let mut grupo = SettingsGroup::new("Thanatos").meta(vm::config::resumo(&self.config));
+        for i in 0..self.config.linhas().len() {
+            if let Some(linha) = self.linha_de_config(i, cx) {
+                grupo = grupo.row(linha);
+            }
+        }
+        let (salvar, descartar) = (cx.entity(), cx.entity());
+        pagina.child(grupo).child(
+            SettingsBar::new(self.config.pendentes())
+                .saving(self.t_gravar.carregando())
+                .saved(self.config_salvo)
+                .on_save(move |_, _, cx| salvar.update(cx, |v, cx| v.salvar_config(cx)))
+                .on_discard(move |_, window, cx| {
+                    descartar.update(cx, |v, cx| v.descartar_config(window, cx));
+                }),
+        )
     }
 
     fn esqueleto(&self, id: &'static str) -> gpui::AnyElement {
@@ -366,6 +595,7 @@ impl ThanatosView {
         Rail::new([
             RailGroup::new("Consulta", [item(Tela::Postmortems), item(Tela::Fontes)]),
             RailGroup::new("Geração", [item(Tela::Novo)]),
+            RailGroup::new("Sistema", [item(Tela::Configuracoes)]),
         ])
         .brand(
             RailBrand::new("Thanatos")
@@ -644,7 +874,7 @@ impl ThanatosView {
                     ),
             );
             if let Some(nota) = c.nota {
-                cartao = cartao.child(nota);
+                cartao = cartao.note(nota);
             }
             cartoes = cartoes.child(div().flex().flex_col().flex_1().child(cartao.fill()));
         }
@@ -669,7 +899,10 @@ impl ThanatosView {
 }
 
 impl Render for ThanatosView {
-    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        if self.tela == Tela::Configuracoes {
+            self.garantir_campos_config(window, cx);
+        }
         let p = palette(cx);
         let (esquerda, direita) = self.rodape();
         let rail = self.rail(cx);
@@ -677,6 +910,7 @@ impl Render for ThanatosView {
             Tela::Postmortems => self.tela_postmortems(cx).into_any_element(),
             Tela::Novo => self.tela_novo(cx).into_any_element(),
             Tela::Fontes => self.tela_fontes().into_any_element(),
+            Tela::Configuracoes => self.tela_configuracoes(cx).into_any_element(),
         };
         let confirmar = self.confirmacao.pendente().map(|id| {
             let (sim, nao) = (cx.entity(), cx.entity());
@@ -706,7 +940,7 @@ impl Render for ThanatosView {
             .id("thanatos")
             .track_focus(&self.foco)
             .on_key_down(cx.listener(|v, ev: &KeyDownEvent, _, cx| {
-                if v.tela == Tela::Novo {
+                if matches!(v.tela, Tela::Novo | Tela::Configuracoes) {
                     return;
                 }
                 if let Some(t) = vm::tela_da_tecla(&ev.keystroke.key) {

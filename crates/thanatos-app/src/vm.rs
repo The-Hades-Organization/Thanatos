@@ -4,6 +4,7 @@ use hades_ui::Tone;
 use thanatos_core::model::{IndexEntry, Postmortem, SourceStatus, TimelineEntry, TimelineSource};
 use thanatos_core::render::format_duration;
 
+pub mod config;
 pub mod novo;
 
 /// Telas da navegação lateral (`design/thanatos.html`).
@@ -12,16 +13,23 @@ pub enum Tela {
     Postmortems,
     Novo,
     Fontes,
+    Configuracoes,
 }
 
 impl Tela {
-    pub const TODAS: [Tela; 3] = [Tela::Postmortems, Tela::Novo, Tela::Fontes];
+    pub const TODAS: [Tela; 4] = [
+        Tela::Postmortems,
+        Tela::Novo,
+        Tela::Fontes,
+        Tela::Configuracoes,
+    ];
 
     pub fn rotulo(self) -> &'static str {
         match self {
             Tela::Postmortems => "Post-mortems",
             Tela::Novo => "Novo",
             Tela::Fontes => "Fontes",
+            Tela::Configuracoes => "Configurações",
         }
     }
 
@@ -31,6 +39,7 @@ impl Tela {
             Tela::Postmortems => IconName::Skull,
             Tela::Novo => IconName::Plus,
             Tela::Fontes => IconName::History,
+            Tela::Configuracoes => IconName::SlidersHorizontal,
         }
     }
 
@@ -40,6 +49,7 @@ impl Tela {
             "postmortems" => Some(Tela::Postmortems),
             "novo" => Some(Tela::Novo),
             "fontes" => Some(Tela::Fontes),
+            "configuracoes" => Some(Tela::Configuracoes),
             _ => None,
         }
     }
@@ -49,12 +59,13 @@ impl Tela {
     }
 }
 
-/// Atalho de teclado: `1`, `2` e `3` trocam de tela.
+/// Atalho de teclado: `1` a `4` trocam de tela.
 pub fn tela_da_tecla(tecla: &str) -> Option<Tela> {
     match tecla {
         "1" => Some(Tela::Postmortems),
         "2" => Some(Tela::Novo),
         "3" => Some(Tela::Fontes),
+        "4" => Some(Tela::Configuracoes),
         _ => None,
     }
 }

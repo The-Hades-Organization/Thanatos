@@ -86,6 +86,7 @@ fn tela_por_rotulo_e_por_tecla() {
     assert_eq!(tela_da_tecla("1"), Some(Tela::Postmortems));
     assert_eq!(tela_da_tecla("2"), Some(Tela::Novo));
     assert_eq!(tela_da_tecla("3"), Some(Tela::Fontes));
+    assert_eq!(tela_da_tecla("4"), Some(Tela::Configuracoes));
     assert_eq!(tela_da_tecla("x"), None);
 }
 
