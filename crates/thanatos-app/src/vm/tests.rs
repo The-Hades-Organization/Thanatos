@@ -160,10 +160,7 @@ fn markdown_sem_a_secao_da_linha_do_tempo() {
 #[test]
 fn titulo_e_tempo_ate_a_correcao() {
     let mut pm = documento();
-    assert_eq!(
-        titulo_do_documento(&pm),
-        "pr-1234 · fila travava o pronto"
-    );
+    assert_eq!(titulo_do_documento(&pm), "pr-1234 · fila travava o pronto");
     assert_eq!(tempo_ate_a_correcao(&pm), "41min");
     pm.fix_data.time_to_fix = None;
     assert_eq!(tempo_ate_a_correcao(&pm), "—");
