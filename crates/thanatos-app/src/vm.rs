@@ -231,6 +231,9 @@ pub struct CartaoDaFonte {
     pub selo: &'static str,
     pub tom: Tone,
     pub nota: Option<String>,
+    /// Eventos da linha do tempo vindos desta fonte e fração do total.
+    pub eventos: usize,
+    pub participacao: f32,
 }
 
 /// As quatro fontes do post-mortem: git, gh, diário e plugin (`source`). Git e gh são `ok` quando trouxeram algo e
@@ -243,19 +246,42 @@ pub fn cartoes_das_fontes(pm: &Postmortem) -> Vec<CartaoDaFonte> {
         .iter()
         .filter(|e| e.source == TimelineSource::Diario)
         .count();
-    let simples = |nome, n: usize, unidade: (&str, &str)| CartaoDaFonte {
-        nome,
-        resumo: plural(n, unidade.0, unidade.1),
-        selo: if n > 0 { "ok" } else { "ausente" },
-        tom: if n > 0 { Tone::Ok } else { Tone::Neutral },
-        nota: None,
+    let da_fonte = |origem: TimelineSource| {
+        let n = pm.timeline.iter().filter(|e| e.source == origem).count();
+        let total = pm.timeline.len();
+        (
+            n,
+            if total == 0 {
+                0.0
+            } else {
+                n as f32 / total as f32
+            },
+        )
     };
+    let simples = |nome, n: usize, unidade: (&str, &str), origem| {
+        let (eventos, participacao) = da_fonte(origem);
+        CartaoDaFonte {
+            nome,
+            resumo: plural(n, unidade.0, unidade.1),
+            selo: if n > 0 { "ok" } else { "ausente" },
+            tom: if n > 0 { Tone::Ok } else { Tone::Neutral },
+            nota: None,
+            eventos,
+            participacao,
+        }
+    };
+    let (eventos_do_plugin, participacao_do_plugin) = da_fonte(TimelineSource::Fonte);
     let nota_do_plugin = (!pm.source.note.is_empty()).then(|| pm.source.note.clone());
     let metricas = pm.source.metrics.len();
     vec![
-        simples("git", commits, ("commit", "commits")),
-        simples("gh", prs, ("PR", "PRs")),
-        simples("diário", diario, ("evento", "eventos")),
+        simples("git", commits, ("commit", "commits"), TimelineSource::Git),
+        simples("gh", prs, ("PR", "PRs"), TimelineSource::Gh),
+        simples(
+            "diário",
+            diario,
+            ("evento", "eventos"),
+            TimelineSource::Diario,
+        ),
         CartaoDaFonte {
             nome: "plugin",
             resumo: if metricas == 0 {
@@ -266,6 +292,8 @@ pub fn cartoes_das_fontes(pm: &Postmortem) -> Vec<CartaoDaFonte> {
             selo: rotulo_do_status(pm.source.status),
             tom: tom_do_status(pm.source.status),
             nota: nota_do_plugin,
+            eventos: eventos_do_plugin,
+            participacao: participacao_do_plugin,
         },
     ]
 }

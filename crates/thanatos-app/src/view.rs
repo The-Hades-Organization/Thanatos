@@ -11,8 +11,8 @@ use gpui::{
 use gpui_component::input::{InputEvent, InputState};
 use hades_core::Env;
 use hades_ui::components::{
-    Align, Button, Card, Confirm, CopyButton, DataTable, EmptyState, MarkdownView, Page,
-    PageHeader, Rail, RailBrand, RailGroup, RailItem, RailStat, Segmented, Skeleton, Spinner,
+    Align, Button, Card, Confirm, CopyButton, DataTable, EmptyState, MarkdownView, MetaList, Meter,
+    Page, PageHeader, Rail, RailBrand, RailGroup, RailItem, RailStat, Segmented, Skeleton, Spinner,
     StatusBadge, StatusBar, TermBlock, TextField, Timeline,
 };
 use hades_ui::icons::IconName;
@@ -49,6 +49,7 @@ pub struct ThanatosView {
     confirmacao: Confirmacao,
     t_criar: Tarefa,
     t_editor: Tarefa,
+    recolhida: bool,
 }
 
 impl ThanatosView {
@@ -88,6 +89,7 @@ impl ThanatosView {
             confirmacao: Confirmacao::default(),
             t_criar: Tarefa::default(),
             t_editor: Tarefa::default(),
+            recolhida: false,
             env,
             cwd,
         };
@@ -345,13 +347,14 @@ impl ThanatosView {
         let direita = match (&self.dir, &self.selecionado) {
             (Some(d), Some(id)) => format!("{}/{id}.json", d.display()),
             (Some(d), None) => d.display().to_string(),
-            _ => format!("thanatos {}", env!("CARGO_PKG_VERSION")),
+            _ => String::new(),
         };
         (esquerda, direita)
     }
 
     fn rail(&self, cx: &mut Context<Self>) -> Rail {
         let entidade = cx.entity();
+        let recolhimento = cx.entity();
         let item = |t: Tela| {
             let item = RailItem::new(t.rotulo()).icon(t.icone());
             if t == Tela::Postmortems {
@@ -369,10 +372,18 @@ impl ThanatosView {
                 .icon(IconName::Skull)
                 .subtitle("post-mortems"),
         )
-        .footer(
+        .stat(
             RailStat::new("Post-mortems", format!("{} gravados", self.lista.len()))
                 .tone(Tone::Neutral),
         )
+        .theme_toggle()
+        .collapsed(self.recolhida)
+        .on_collapse(move |recolher, _, cx| {
+            recolhimento.update(cx, |v, cx| {
+                v.recolhida = recolher;
+                cx.notify();
+            });
+        })
         .selected(self.tela.rotulo())
         .on_select(move |rotulo, _, cx| {
             if let Some(t) = Tela::de_rotulo(rotulo) {
@@ -555,9 +566,11 @@ impl ThanatosView {
             }
         };
         let mut formulario = Card::new()
+            .fill()
             .title("Novo post-mortem")
             .child(modos)
             .child(campo)
+            .child(div().flex_1())
             .child(div().flex().gap(px(space::SM)).child(gerar));
         if let Some(id) = self.validacao.id() {
             formulario = formulario.child(format!("Será gravado como {id}."));
@@ -618,10 +631,18 @@ impl ThanatosView {
         let pm = &doc.postmortem;
         let mut cartoes = div().flex().gap(px(space::MD)).min_w_0();
         for c in vm::cartoes_das_fontes(pm) {
-            let mut cartao = Card::new()
-                .title(c.nome)
-                .child(StatusBadge::new(c.selo, c.tom))
-                .child(c.resumo);
+            let mut cartao = Card::new().title(c.nome).badge(c.selo, c.tom).child(
+                MetaList::new()
+                    .label_width(96.0)
+                    .row("Itens", c.resumo)
+                    .row("Eventos", c.eventos.to_string())
+                    .element(
+                        "Linha do tempo",
+                        Meter::new(c.participacao)
+                            .tone(c.tom)
+                            .value(format!("{:.0}%", c.participacao * 100.0)),
+                    ),
+            );
             if let Some(nota) = c.nota {
                 cartao = cartao.child(nota);
             }
@@ -699,7 +720,10 @@ impl Render for ThanatosView {
             .bg(p.bg)
             .text_color(p.fg)
             .child(div().flex_1().flex().min_h_0().child(rail).child(corpo))
-            .child(StatusBar::new(esquerda, direita))
+            .child(
+                StatusBar::new(esquerda, direita)
+                    .version(concat!("thanatos ", env!("CARGO_PKG_VERSION"))),
+            )
             .children(confirmar)
     }
 }
