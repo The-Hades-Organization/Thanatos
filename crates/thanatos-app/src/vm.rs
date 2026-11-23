@@ -25,6 +25,25 @@ impl Tela {
         }
     }
 
+    pub fn icone(self) -> hades_ui::icons::IconName {
+        use hades_ui::icons::IconName;
+        match self {
+            Tela::Postmortems => IconName::Skull,
+            Tela::Novo => IconName::Plus,
+            Tela::Fontes => IconName::History,
+        }
+    }
+
+    /// Nome de tela aceito em `--tela`.
+    pub fn de_nome(nome: &str) -> Option<Tela> {
+        match nome {
+            "postmortems" => Some(Tela::Postmortems),
+            "novo" => Some(Tela::Novo),
+            "fontes" => Some(Tela::Fontes),
+            _ => None,
+        }
+    }
+
     pub fn de_rotulo(rotulo: &str) -> Option<Tela> {
         Tela::TODAS.into_iter().find(|t| t.rotulo() == rotulo)
     }

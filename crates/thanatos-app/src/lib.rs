@@ -4,6 +4,6 @@ mod service;
 mod view;
 pub mod vm;
 
-pub use view::{ThanatosView, abrir_janela};
+pub use view::{ThanatosView, abrir_janela, abrir_janela_em};
 
 pub const NOME: &str = "Thanatos";

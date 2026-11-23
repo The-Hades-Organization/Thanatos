@@ -12,9 +12,10 @@ use gpui_component::input::{InputEvent, InputState};
 use hades_core::Env;
 use hades_ui::components::{
     Align, Button, Card, Confirm, CopyButton, DataTable, EmptyState, MarkdownView, PageHeader,
-    Rail, RailGroup, RailItem, Segmented, Skeleton, Spinner, StatusBadge, StatusBar, TermBlock,
-    TextField, Timeline, TopBar,
+    Rail, RailBrand, RailGroup, RailItem, Segmented, Skeleton, Spinner, StatusBadge, StatusBar,
+    TermBlock, TextField, Timeline, TopBar,
 };
+use hades_ui::icons::IconName;
 use hades_ui::tokens::space;
 use hades_ui::{Tone, palette};
 
@@ -352,7 +353,7 @@ impl ThanatosView {
     fn rail(&self, cx: &mut Context<Self>) -> Rail {
         let entidade = cx.entity();
         let item = |t: Tela| {
-            let item = RailItem::new(t.rotulo());
+            let item = RailItem::new(t.rotulo()).icon(t.icone());
             if t == Tela::Postmortems {
                 item.badge(self.lista.len().to_string())
             } else {
@@ -363,6 +364,11 @@ impl ThanatosView {
             RailGroup::new("Consulta", [item(Tela::Postmortems), item(Tela::Fontes)]),
             RailGroup::new("Geração", [item(Tela::Novo)]),
         ])
+        .brand(
+            RailBrand::new("Hades")
+                .icon(IconName::Skull)
+                .subtitle("thanatos"),
+        )
         .selected(self.tela.rotulo())
         .on_select(move |rotulo, _, cx| {
             if let Some(t) = Tela::de_rotulo(rotulo) {
@@ -446,8 +452,8 @@ impl ThanatosView {
 
     fn botoes_do_documento(&self, cx: &mut Context<Self>) -> (Button, Button) {
         let e = cx.entity();
-        let mut refazer = Button::new("refazer", "Refazer");
-        let mut editar = Button::new("editar", "Editar .md");
+        let mut refazer = Button::new("refazer", "Refazer").icon(IconName::RefreshCw);
+        let mut editar = Button::new("editar", "Editar .md").icon(IconName::Pencil);
         match &self.documento {
             None => {
                 refazer = refazer.disabled("nenhum documento aberto");
@@ -482,10 +488,14 @@ impl ThanatosView {
         let cabecalho = PageHeader::new("Post-mortems")
             .action(editar)
             .action(refazer)
-            .action(Button::new("recarregar", "Recarregar").on_click({
-                let e = cx.entity();
-                move |_, _, cx| e.update(cx, |v, cx| v.recarregar(cx))
-            }));
+            .action(
+                Button::new("recarregar", "Recarregar")
+                    .icon(IconName::RefreshCw)
+                    .on_click({
+                        let e = cx.entity();
+                        move |_, _, cx| e.update(cx, |v, cx| v.recarregar(cx))
+                    }),
+            );
         let coluna = div().flex().flex_col().gap(px(space::LG)).child(cabecalho);
         if self.lista.is_empty() {
             let (titulo, dica) = if self.t_lista.carregando() {
@@ -533,7 +543,7 @@ impl ThanatosView {
         let campo = TextField::new(&self.campo)
             .label("Entrada")
             .error_opt(self.validacao.erro().map(str::to_owned));
-        let mut gerar = Button::new("gerar", "Gerar").primary();
+        let mut gerar = Button::new("gerar", "Gerar").icon(IconName::Plus).primary();
         gerar = match self.motivo_sem_gerar() {
             Some(motivo) => gerar.disabled(motivo),
             None => {
@@ -692,12 +702,21 @@ impl Render for ThanatosView {
 }
 
 pub fn abrir_janela(cx: &mut App) {
+    abrir_janela_em(cx, Tela::Postmortems);
+}
+
+/// Abre a janela já na tela pedida (`--tela`).
+pub fn abrir_janela_em(cx: &mut App, tela: Tela) {
     let aberta = cx.open_window(gpui::WindowOptions::default(), |window, cx| {
         window.set_window_title(crate::NOME);
         let cwd = std::env::current_dir().unwrap_or_default();
         let view: Entity<ThanatosView> = cx.new(|cx| {
             ThanatosView::iniciar(cx);
-            ThanatosView::new(Env::from_process(), cwd, cx.focus_handle(), window, cx)
+            let mut v = ThanatosView::new(Env::from_process(), cwd, cx.focus_handle(), window, cx);
+            if tela != Tela::Postmortems {
+                v.mudar_tela(tela, cx);
+            }
+            v
         });
         view
     });
